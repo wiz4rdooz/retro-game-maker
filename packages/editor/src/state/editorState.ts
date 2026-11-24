@@ -3,6 +3,7 @@ import type { ViewKind } from '@rgm/engine';
 import type { SaveStatus } from '../project/autosave';
 import { DEFAULT_BRUSH, type BrushState } from '../tools/brush';
 import type { ToolId } from '../tools/registry';
+import type { Selection } from '../tools/selection';
 
 export interface HoverInfo {
   point: [number, number, number];
@@ -28,6 +29,7 @@ export interface EditorState {
   /** Zählt jede Änderung am Dokument (History). */
   docVersion: Signal<number>;
   statsVisible: Signal<boolean>;
+  selection: Signal<Selection>;
 }
 
 export function createEditorState(): EditorState {
@@ -45,5 +47,6 @@ export function createEditorState(): EditorState {
     saveStatus: signal('gespeichert'),
     docVersion: signal(0),
     statsVisible: signal(false),
+    selection: signal<Selection>({ mode: 'tiles', ids: new Set() }),
   };
 }

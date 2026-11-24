@@ -130,6 +130,26 @@ export function makeToolHarness(toolId: ToolId) {
       }
       tool.pointerUp(pointer(u1, v1, o), ctx);
     },
+    /** Taste an das aktive Werkzeug (wie von der Editor-Tastatur weitergereicht); true = erledigt. */
+    key(key: string, mods: { shift?: boolean; ctrl?: boolean; alt?: boolean } = {}): boolean {
+      const e = {
+        key,
+        shiftKey: !!mods.shift,
+        ctrlKey: !!mods.ctrl,
+        altKey: !!mods.alt,
+        metaKey: false,
+        repeat: false,
+        preventDefault() {},
+      } as unknown as KeyboardEvent;
+      return tool.key(e, ctx);
+    },
+    /** Klick knapp innerhalb der Zelle (u, v) an ihrer Kante: north = −Z (z = v), south = z = v + 1, west = x = u, east = x = u + 1. */
+    clickEdgeOf(u: number, v: number, side: 'north' | 'south' | 'east' | 'west', o: CellOpts = {}) {
+      const off = { north: [0.5, 0.08], south: [0.5, 0.92], west: [0.08, 0.5], east: [0.92, 0.5] }[side];
+      const p = pointer(u + off[0] - 0.5, v + off[1] - 0.5, o);
+      tool.pointerDown(p, ctx);
+      tool.pointerUp(p, ctx);
+    },
     hoverCell(u: number, v: number, o: CellOpts = {}) {
       tool.pointerMove(pointer(u, v, o), ctx);
     },

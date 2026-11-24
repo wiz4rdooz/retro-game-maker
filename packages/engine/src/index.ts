@@ -34,3 +34,13 @@ export {
   type WorldMeta,
 } from './world/serialize';
 export { floodCoplanar } from './geometry/adjacency';
+export {
+  translateTiles,
+  rotateTiles90,
+  scaleTiles,
+  moveVertices,
+  mergeVertices,
+  selectionPivot,
+  type TileChange,
+} from './geometry/transform';
+export { extrudeTiles } from './geometry/extrude';

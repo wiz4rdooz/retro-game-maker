@@ -5,7 +5,8 @@ import { EraseTool } from './eraseTool';
 import { EyedropperTool } from './eyedropperTool';
 import { FillTool } from './fillTool';
 import { PaintTool } from './paintTool';
-import type { Tool, ToolContext, ToolPointer } from './tool';
+import { SelectTool } from './selectTool';
+import type { Tool } from './tool';
 
 export type ToolId = 'paint' | 'block' | 'select' | 'fill' | 'eyedropper' | 'erase';
 
@@ -43,19 +44,6 @@ export function toolForKey(key: string): ToolId | null {
   return null;
 }
 
-/** Platzhalter für Werkzeuge, die noch folgen (Auswählen). */
-class PendingTool implements Tool {
-  constructor(readonly id: ToolId) {}
-  pointerDown(_p: ToolPointer, c: ToolContext): void {
-    c.notify(t.status.folgt);
-  }
-  pointerMove(): void {}
-  pointerUp(): void {}
-  key(): boolean {
-    return false;
-  }
-}
-
 /** Neues Werkzeug-Objekt zur id. */
 export function createTool(id: ToolId): Tool {
   switch (id) {
@@ -69,7 +57,7 @@ export function createTool(id: ToolId): Tool {
       return new BlockTool();
     case 'fill':
       return new FillTool();
-    default:
-      return new PendingTool(id);
+    case 'select':
+      return new SelectTool();
   }
 }

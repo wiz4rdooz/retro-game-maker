@@ -39,6 +39,14 @@ export class LineRenderer {
     this.drawArrays(camera, aspect, points, rgba, false, this.gl.POINTS, sizePx);
   }
 
+  /** Flächen (je 3 Ecken), beidseitig sichtbar – z. B. die Füllung ausgewählter Kacheln. */
+  drawTriangles(camera: Camera, aspect: number, triangles: Float32Array, rgba: Rgba, depthTest: boolean): void {
+    const gl = this.gl;
+    gl.disable(gl.CULL_FACE);
+    this.drawArrays(camera, aspect, triangles, rgba, depthTest, gl.TRIANGLES, 1);
+    gl.enable(gl.CULL_FACE);
+  }
+
   private drawArrays(camera: Camera, aspect: number, data: Float32Array, rgba: Rgba, depthTest: boolean, mode: number, size: number): void {
     const count = Math.floor(data.length / 3);
     if (count === 0) return;

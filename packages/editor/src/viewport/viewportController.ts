@@ -22,9 +22,10 @@ import {
   type ViewKind,
 } from '@rgm/engine';
 import type { EditorSession } from '../app/session';
-import type { EditorState } from '../state/editorState';
+import type { EditorState, SelectMode } from '../state/editorState';
 import { PlaneResolver, nextPlaneMode, planeLabel } from '../tools/drawPlane';
 import { createTool } from '../tools/registry';
+import { convertSelection, runSelectionAction, selectionPositions, type Selection, type SelectionAction } from '../tools/selection';
 import { pointerTarget, type Tool, type ToolContext, type ToolPointer } from '../tools/tool';
 import { showToast } from '../ui/Toast';
 import { isTypingTarget } from './keyboard';
@@ -35,6 +36,8 @@ export interface Preview {
   ghosts: TileData[];
   lines: Float32Array;
   points: Float32Array;
+  /** Auswahl-Rechteck in CSS-Pixeln der Ansicht (x0, y0, x1, y1). */
+  rect?: [number, number, number, number];
 }
 
 export class NoWebGl2Error extends Error {}
@@ -47,6 +50,9 @@ const MESH_BUDGET_MS = 8;
 const GHOST_ALPHA = 0.6;
 const GRID_RGBA: [number, number, number, number] = [1, 1, 1, 0.22];
 const GRID_CELLS = 24;
+const SEL_FILL: [number, number, number, number] = [0x4d / 255, 0x9f / 255, 1, 0.25];
+/** Mehr ausgewählte Kacheln werden nicht einzeln hervorgehoben. */
+const SEL_DRAW_MAX = 20_000;
 
 /**
  * Zeichnet die Welt bei Bedarf (Kamera, Welt, Hover, Vorschau). Vor jedem Bild werden geänderte
@@ -82,6 +88,10 @@ export class ViewportController {
   /** Zeiger gehört gerade dem Werkzeug (gedrückt). */
   private toolDown = false;
   private grid: Float32Array = new Float32Array(0);
+  private selFill: Float32Array = new Float32Array(0);
+  private selLines: Float32Array = new Float32Array(0);
+  private selPoints: Float32Array = new Float32Array(0);
+  private rectEl: HTMLDivElement | null = null;
   private cursorLines: Float32Array = new Float32Array(0);
   private readonly vp = mat4.create();
   private readonly cleanups: (() => void)[] = [];
@@ -142,7 +152,19 @@ export class ViewportController {
         this.updateCursorLines();
         this.requestRender();
       }),
+      effect(() => {
+        void state.docVersion.value;
+        void state.selection.value;
+        void state.tool.value;
+        this.updateSelectionGeometry();
+        this.requestRender();
+      }),
     );
+    this.rectEl = document.createElement('div');
+    this.rectEl.className = 'select-rect';
+    this.rectEl.hidden = true;
+    canvas.parentElement?.appendChild(this.rectEl);
+    this.cleanups.push(() => this.rectEl?.remove());
     this.installInput();
 
     const lost = (e: Event) => {
@@ -205,6 +227,17 @@ export class ViewportController {
 
   setPreview(p: Preview | null): void {
     this.preview = p;
+    if (this.rectEl) {
+      const r = p?.rect;
+      this.rectEl.hidden = !r;
+      if (r) {
+        const st = this.rectEl.style;
+        st.left = `${Math.min(r[0], r[2])}px`;
+        st.top = `${Math.min(r[1], r[3])}px`;
+        st.width = `${Math.abs(r[2] - r[0])}px`;
+        st.height = `${Math.abs(r[3] - r[1])}px`;
+      }
+    }
     this.ghostParts = [];
     if (p && p.ghosts.length > 0) {
       const chunk = new Chunk(0);
@@ -250,6 +283,7 @@ export class ViewportController {
     const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
     if (this.cam.looking && (CameraController.isFlyKey(k) || k === 'Shift')) return true;
     if (k === ' ' && (this.pointerInside || this.cam.panning)) return true;
+    if (this.tool.key(e, this.toolCtx)) return true;
     if (k === 'q' && !e.ctrlKey && !e.metaKey && !e.altKey) {
       this.state.drawPlane.value = nextPlaneMode(this.state.drawPlane.value);
       return true;
@@ -260,7 +294,6 @@ export class ViewportController {
       this.requestRender();
       return true;
     }
-    if (this.tool.key(e, this.toolCtx)) return true;
     if (k === 'f' && !e.ctrlKey && !e.metaKey && !e.altKey) {
       const hover = this.state.hover.value;
       const b = this.session.world.bounds();
@@ -269,6 +302,46 @@ export class ViewportController {
       return true;
     }
     return false;
+  }
+
+  /** Auswahl in einen anderen Modus übertragen (für den Modus-Umschalter). */
+  convertSelection(mode: SelectMode): Selection {
+    return convertSelection(this.state.selection.value, mode, this.toolCtx);
+  }
+
+  /** Auswahl-Aktion aus der Seitenleiste (ein Undo-Schritt). */
+  selectionAction(action: SelectionAction): void {
+    runSelectionAction(action, this.toolCtx);
+  }
+
+  /** Auswahl hervorheben (nur mit dem Auswahl-Werkzeug): Kacheln mit Umriss und 25 % Füllung, Ecken als Punkte, Kanten als Linien. */
+  private updateSelectionGeometry(): void {
+    const sel = this.state.selection.value;
+    const fill: number[] = [];
+    const lines: number[] = [];
+    const points: number[] = [];
+    if (this.state.tool.value === 'select') {
+      if (sel.mode === 'tiles') {
+        let n = 0;
+        for (const id of sel.ids) {
+          if (n++ >= SEL_DRAW_MAX) break;
+          const tile = this.session.world.getTile(id);
+          if (!tile) continue;
+          const c = tile.corners;
+          for (const k of [0, 1, 2, 0, 2, 3]) fill.push(c[k * 3], c[k * 3 + 1], c[k * 3 + 2]);
+          for (let k = 0; k < 4; k++) {
+            const a = k * 3, b = ((k + 1) % 4) * 3;
+            lines.push(c[a], c[a + 1], c[a + 2], c[b], c[b + 1], c[b + 2]);
+          }
+        }
+      } else {
+        if (sel.mode === 'edges') for (const [a, b] of sel.edges) lines.push(a[0], a[1], a[2], b[0], b[1], b[2]);
+        for (const p of selectionPositions(sel)) points.push(p[0], p[1], p[2]);
+      }
+    }
+    this.selFill = new Float32Array(fill);
+    this.selLines = new Float32Array(lines);
+    this.selPoints = new Float32Array(points);
   }
 
   /** Erster Treffer unter dem Zeiger (CSS-Pixel) auf sichtbaren Ebenen. */
@@ -524,6 +597,9 @@ export class ViewportController {
     const aspect = w / Math.max(1, h);
     this.lastStats = this.tiles.draw(this.camera, aspect, FOG);
     if (this.ghostParts.length > 0) this.tiles.drawGhosts(this.camera, aspect, this.ghostParts, GHOST_ALPHA);
+    if (this.selFill.length >= 9) this.lines.drawTriangles(this.camera, aspect, this.selFill, SEL_FILL, false);
+    if (this.selLines.length >= 6) this.lines.drawLines(this.camera, aspect, this.selLines, ACCENT, false);
+    if (this.selPoints.length >= 3) this.lines.drawPoints(this.camera, aspect, this.selPoints, ACCENT, 6);
     if (this.grid.length >= 6) this.lines.drawLines(this.camera, aspect, this.grid, GRID_RGBA, true);
     if (this.cursorLines.length >= 6) this.lines.drawLines(this.camera, aspect, this.cursorLines, ACCENT, false);
     const p = this.preview;

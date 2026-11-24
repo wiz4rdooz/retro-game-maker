@@ -1,11 +1,7 @@
-import type { TileData } from '@rgm/engine';
+import type { TileChange, TileData } from '@rgm/engine';
 import { recordBytes, type Command, type DocCtx } from './command';
 
-export interface TileChange {
-  id: number;
-  before: TileData;
-  after: TileData;
-}
+export type { TileChange };
 
 export interface TileEdit {
   add: TileData[];
