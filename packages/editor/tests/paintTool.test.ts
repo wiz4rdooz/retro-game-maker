@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { cellQuad } from '@rgm/engine';
 import { makeToolHarness } from './toolHarness'; // Helfer: Welt, History, Zustand, Kamera über dem Ursprung (Blick senkrecht nach unten), pointer(ndc→Zelle)
 describe('Kachel malen', () => {
   it('Klick auf freien Boden setzt eine Kachel; zweiter Klick malt um statt zu stapeln', () => {
@@ -27,6 +28,19 @@ describe('Kachel malen', () => {
   });
   it('Radieren entfernt die getroffene Kachel', () => {
     const h = makeToolHarness('paint'); h.clickCell(1, 1); h.useTool('erase'); h.clickCell(1, 1); expect(h.world.tileCount()).toBe(0);
+  });
+  it('Radieren gräbt nicht durch: Zittern auf gestapelten Böden entfernt nur den obersten', () => {
+    const h = makeToolHarness('erase');
+    for (const y of [0, 1, 2]) {
+      h.world.addTile({ layer: 1, tileset: 0, tx: 0, ty: 0, rot: 0, flipX: false, flipY: false, doubleSided: false, ghost: false, corners: cellQuad({ axis: 'y', offset: y, facing: 1 }, 1, 1) });
+    }
+    h.pressCell(1, 1); h.hoverCell(1, 1); h.hoverCell(1, 1); h.releaseCell(1, 1);
+    expect(h.world.tileCount()).toBe(2);
+    expect(h.countWhere((tl) => tl.corners[1] === 2)).toBe(0);
+  });
+  it('ein Radier-Strich über Nachbarzellen entfernt jede getroffene Kachel', () => {
+    const h = makeToolHarness('paint'); h.dragCells([1, 1], [4, 1]); expect(h.world.tileCount()).toBe(4);
+    h.useTool('erase'); h.dragCells([1, 1], [4, 1]); expect(h.world.tileCount()).toBe(0);
   });
   it('auf eine Rampe malen: nur umfärben, keine neue Kachel', () => {
     const h = makeToolHarness('paint'); h.clickCell(0, 0);

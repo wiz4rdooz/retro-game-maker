@@ -153,6 +153,13 @@ export function makeToolHarness(toolId: ToolId) {
     hoverCell(u: number, v: number, o: CellOpts = {}) {
       tool.pointerMove(pointer(u, v, o), ctx);
     },
+    /** Nur Drücken bzw. nur Loslassen (für Striche mit eigenen Bewegungen dazwischen). */
+    pressCell(u: number, v: number, o: CellOpts = {}) {
+      tool.pointerDown(pointer(u, v, o), ctx);
+    },
+    releaseCell(u: number, v: number, o: CellOpts = {}) {
+      tool.pointerUp(pointer(u, v, o), ctx);
+    },
     useTool(id: ToolId) {
       tool.deactivate?.(ctx);
       tool = createTool(id);

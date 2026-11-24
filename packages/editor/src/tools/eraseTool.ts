@@ -1,4 +1,4 @@
-import { axisIndex, planeToWorld, quadCentroid, vec3, worldToPlane, type DrawPlane } from '@rgm/engine';
+import { axisIndex, planeToWorld, quadCentroid, rayTriangle, vec3, worldToPlane, type DrawPlane } from '@rgm/engine';
 import { removeTilesCmd } from '../commands/tileCommands';
 import { t } from '../strings/de';
 import { cellAt } from './drawPlane';
@@ -17,6 +17,24 @@ import {
 
 type Cell = [number, number];
 
+const RO = vec3.create();
+const RD = vec3.create();
+const QA = vec3.create();
+const QB = vec3.create();
+const QC = vec3.create();
+
+/** true, wenn der Strahl das Viereck vor (oder bei) maxT trifft – beidseitig. */
+function rayHitsQuadBefore(o: Float32Array, d: Float32Array, q: Float32Array, maxT: number): boolean {
+  for (const [i, j, k] of [[0, 1, 2], [0, 2, 3]]) {
+    QA.set(q.subarray(i * 3, i * 3 + 3));
+    QB.set(q.subarray(j * 3, j * 3 + 3));
+    QC.set(q.subarray(k * 3, k * 3 + 3));
+    const tq = rayTriangle(o, d, QA, QB, QC, false);
+    if (tq >= 0 && tq <= maxT + 1e-4) return true;
+  }
+  return false;
+}
+
 /**
  * Radieren: Klick oder Ziehen entfernt getroffene, bearbeitbare Kacheln (ein Undo-Schritt je
  * Strich). Shift + Ziehen entfernt alle bearbeitbaren Kacheln, deren Schwerpunkt im Rechteck auf
@@ -24,7 +42,8 @@ type Cell = [number, number];
  */
 export class EraseTool implements Tool {
   readonly id: ToolId = 'erase';
-  private stroke: { done: Set<number>; warned: boolean } | null = null;
+  /** erased: Ecken der in diesem Strich entfernten Kacheln – sie verdecken weiter, was dahinter lag. */
+  private stroke: { done: Set<number>; erased: Float32Array[]; warned: boolean } | null = null;
   private rect: { plane: DrawPlane; start: Cell; end: Cell } | null = null;
 
   pointerDown(p: ToolPointer, c: ToolContext): void {
@@ -38,7 +57,7 @@ export class EraseTool implements Tool {
       return;
     }
     c.history.begin(t.werkzeug.erase);
-    this.stroke = { done: new Set(), warned: false };
+    this.stroke = { done: new Set(), erased: [], warned: false };
     this.eraseAt(p, c);
   }
 
@@ -82,6 +101,11 @@ export class EraseTool implements Tool {
     const s = this.stroke!;
     const hit = c.raycast(p.ndcX, p.ndcY);
     if (!hit || s.done.has(hit.tileId)) return;
+    // Was dieser Strich schon entfernt hat, verdeckt weiter: kein Durchgraben durch Stapel
+    if (s.erased.length > 0) {
+      c.screenRay(p.ndcX, p.ndcY, RO, RD);
+      if (s.erased.some((q) => rayHitsQuadBefore(RO, RD, q, hit.t))) return;
+    }
     const tile = c.world.getTile(hit.tileId);
     if (!tile) return;
     s.done.add(hit.tileId);
@@ -90,6 +114,7 @@ export class EraseTool implements Tool {
       s.warned = true;
       return;
     }
+    s.erased.push(new Float32Array(tile.corners));
     c.exec(removeTilesCmd([hit.tileId], t.werkzeug.erase));
   }
 
