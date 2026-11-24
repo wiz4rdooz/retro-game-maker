@@ -210,6 +210,7 @@ export const t = {
     imOrdner: 'Ordner auf dem PC',
     oeffnet: 'Wird geöffnet …',
     keinProjekt: 'In diesem Ordner liegt kein Projekt (projekt.json fehlt).',
+    ordnerHatProjekt: 'In diesem Ordner liegt schon ein Projekt. Öffne es mit „Ordner öffnen…“ oder wähle einen leeren Ordner.',
     keinZugriff: 'Ohne Schreibzugriff auf den Ordner kann das Projekt nicht geöffnet werden.',
     zipFehler: 'Diese ZIP-Datei enthält kein lesbares Projekt.',
     nurArbeitsspeicher: 'Speichern im Browser ist hier nicht möglich – das Projekt bleibt nur bis zum Neuladen erhalten.',

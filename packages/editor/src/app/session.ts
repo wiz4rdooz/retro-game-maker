@@ -5,7 +5,7 @@ import { Autosave, type SaveStatus } from '../project/autosave';
 import { FolderStorage } from '../project/folderStorage';
 import { IdbStorage } from '../project/idbStorage';
 import { MemoryStorage } from '../project/memoryStorage';
-import { ProjectIO } from '../project/projectIO';
+import { PROJECT_FILE, ProjectIO } from '../project/projectIO';
 import { newProject, type ProjectFile } from '../project/projectModel';
 import { upsertRecent, type RecentEntry } from '../project/recentProjects';
 import type { ProjectStorage } from '../project/storage';
@@ -69,6 +69,8 @@ export class EditorSession {
     let storage: ProjectStorage;
     if (kind === 'folder') {
       storage = new FolderStorage(dir!);
+      // nie ein vorhandenes Projekt überschreiben (saveAll würde dessen Chunks löschen)
+      if ((await storage.readText(PROJECT_FILE)) !== null) throw new Error(t.start.ordnerHatProjekt);
       await new ProjectIO(storage, t.fehler).saveAll(project, world);
     } else {
       try {
