@@ -46,6 +46,8 @@ export class NoWebGl2Error extends Error {}
 const BG: [number, number, number] = [0x16 / 255, 0x18 / 255, 0x1b / 255];
 const FOG: FogOptions = { color: BG, start: 110, end: 160, viewDistance: 160 };
 const ACCENT: [number, number, number, number] = [0x4d / 255, 0x9f / 255, 1, 1];
+/** Bis zu dieser Bewegung (CSS-px) zählt ein Druck mit der rechten Taste als Klick. */
+const CLICK_SLOP_PX = 4;
 const MESH_BUDGET_MS = 8;
 const GHOST_ALPHA = 0.6;
 const GRID_RGBA: [number, number, number, number] = [1, 1, 1, 0.22];
@@ -525,6 +527,8 @@ export class ViewportController {
     const canvas = this.canvas;
     canvas.tabIndex = -1;
     const playing = () => this.state.mode.value === 'play';
+    /** Rechtsklick ohne Ziehen geht als Pipette ans Werkzeug; Ziehen bleibt Umsehen/Verschieben. */
+    let rightPress: { x: number; y: number } | null = null;
     const down = (e: PointerEvent) => {
       if (playing() || this.cam.looking || this.cam.panning) return;
       const panLike = e.button === 1 || e.button === 2 || (e.button === 0 && this.keys.has(' '));
@@ -533,6 +537,7 @@ export class ViewportController {
         if (hit) this.cam.focusDistance = Math.max(0.5, hit.t);
       }
       if (this.cam.pointerDown(e.button, e.offsetX, e.offsetY, this.keys.has(' '))) {
+        rightPress = e.button === 2 ? { x: e.offsetX, y: e.offsetY } : null;
         e.preventDefault();
         canvas.focus({ preventScroll: true });
         canvas.setPointerCapture(e.pointerId);
@@ -558,6 +563,7 @@ export class ViewportController {
     };
     const move = (e: PointerEvent) => {
       if (playing()) return;
+      if (rightPress && Math.hypot(e.offsetX - rightPress.x, e.offsetY - rightPress.y) > CLICK_SLOP_PX) rightPress = null;
       if (this.cam.pointerMove(e.offsetX, e.offsetY)) return;
       const p = this.toolPointer(e);
       this.updateHover(p);
@@ -565,6 +571,16 @@ export class ViewportController {
     };
     const up = (e: PointerEvent) => {
       this.cam.pointerUp(e.button);
+      if (e.button === 2 && rightPress) {
+        rightPress = null;
+        if (!playing() && !this.toolDown) {
+          const p = this.toolPointer(e);
+          this.tool.pointerDown(p, this.toolCtx);
+          this.tool.pointerUp(p, this.toolCtx);
+          this.requestRender();
+        }
+        return;
+      }
       if (!this.toolDown) return;
       this.toolDown = false;
       this.tool.pointerUp(this.toolPointer(e), this.toolCtx);
@@ -595,6 +611,7 @@ export class ViewportController {
     const blur = () => {
       this.keys.clear();
       this.cam.cancel();
+      rightPress = null;
       if (this.toolDown) {
         this.toolDown = false;
         this.tool.deactivate?.(this.toolCtx);
