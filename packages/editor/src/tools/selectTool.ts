@@ -10,6 +10,7 @@ import {
   edgeKey,
   edgesInRect,
   emptySelection,
+  execWithSelection,
   moveSelection,
   pickEdge,
   pickVertex,
@@ -165,8 +166,7 @@ export class SelectTool implements Tool {
       c.notify(t.status.zuGross);
       return;
     }
-    c.exec(updateTilesCmd(d.changes, t.auswahl.verschieben));
-    c.state.selection.value = shifted(c.state.selection.value, d.delta);
+    execWithSelection(c, updateTilesCmd(d.changes, t.auswahl.verschieben), shifted(c.state.selection.value, d.delta));
   }
 
   key(e: KeyboardEvent, c: ToolContext): boolean {

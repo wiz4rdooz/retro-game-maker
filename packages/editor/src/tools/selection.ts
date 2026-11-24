@@ -13,6 +13,7 @@ import {
   type TileChange,
   type World,
 } from '@rgm/engine';
+import type { Command, DocCtx } from '../commands/command';
 import { editTilesCmd, removeTilesCmd, updateTilesCmd } from '../commands/tileCommands';
 import type { SelectMode } from '../state/editorState';
 import { t } from '../strings/de';
@@ -35,6 +36,66 @@ export function emptySelection(mode: SelectMode = 'tiles'): Selection {
 
 export function selectionSize(sel: Selection): number {
   return sel.mode === 'tiles' ? sel.ids.size : sel.mode === 'vertices' ? sel.positions.length : sel.edges.length;
+}
+
+/**
+ * Führt cmd aus und setzt dabei die Auswahl auf after. Rückgängig stellt auch die Auswahl davor her,
+ * Wiederholen die danach – Ecken und Kanten folgen so ihren Kacheln statt als Phantom stehen zu bleiben.
+ */
+export function execWithSelection(c: ToolContext, cmd: Command<DocCtx>, after: Selection): void {
+  const before = c.state.selection.value;
+  const state = c.state;
+  c.exec({
+    label: cmd.label,
+    get bytes() {
+      return cmd.bytes;
+    },
+    do(d) {
+      cmd.do(d);
+      state.selection.value = after;
+    },
+    undo(d) {
+      cmd.undo(d);
+      state.selection.value = before;
+    },
+  });
+}
+
+/** Größere Auswahlen werden nicht bei jeder Änderung nachgeprüft (sie filtern beim Benutzen ohnehin). */
+const PRUNE_LIMIT = 20_000;
+
+/**
+ * Auswahl ohne gelöschte Kacheln bzw. ohne Ecken/Kanten, an denen keine Kachel-Ecke mehr liegt;
+ * null, wenn nichts zu entfernen ist (oder die Auswahl zu groß zum Nachprüfen).
+ */
+export function pruneSelection(sel: Selection, world: World): Selection | null {
+  const size = selectionSize(sel);
+  if (size === 0 || size > PRUNE_LIMIT) return null;
+  if (sel.mode === 'tiles') {
+    const ids = new Set([...sel.ids].filter((id) => world.hasTile(id)));
+    return ids.size === sel.ids.size ? null : { mode: 'tiles', ids };
+  }
+  const eps = 1e-4;
+  const hasCorner = (p: ArrayLike<number>) => {
+    let found = false;
+    world.queryAabb([p[0] - eps, p[1] - eps, p[2] - eps], [p[0] + eps, p[1] + eps, p[2] + eps], (_id, chunk, i) => {
+      if (found) return;
+      for (let k = 0; k < 4; k++) {
+        const o = i * 12 + k * 3;
+        if (Math.abs(chunk.corners[o] - p[0]) <= eps && Math.abs(chunk.corners[o + 1] - p[1]) <= eps && Math.abs(chunk.corners[o + 2] - p[2]) <= eps) {
+          found = true;
+          return;
+        }
+      }
+    });
+    return found;
+  };
+  if (sel.mode === 'vertices') {
+    const positions = sel.positions.filter(hasCorner);
+    return positions.length === sel.positions.length ? null : { mode: 'vertices', positions };
+  }
+  const edges = sel.edges.filter(([a, b]) => hasCorner(a) && hasCorner(b));
+  return edges.length === sel.edges.length ? null : { mode: 'edges', edges };
 }
 
 export const posKey = (p: ArrayLike<number>) => `${Math.round(p[0] * 1e4)},${Math.round(p[1] * 1e4)},${Math.round(p[2] * 1e4)}`;
@@ -257,8 +318,7 @@ export function moveSelection(c: ToolContext, delta: ArrayLike<number>): boolean
   if (selectionSize(sel) === 0) return false;
   const changes = selectionMoveChanges(c, delta);
   if (tooBig(changes.length, c)) return true;
-  if (changes.length > 0) c.exec(updateTilesCmd(changes, t.auswahl.verschieben));
-  c.state.selection.value = shifted(sel, delta);
+  if (changes.length > 0) execWithSelection(c, updateTilesCmd(changes, t.auswahl.verschieben), shifted(sel, delta));
   return true;
 }
 
@@ -288,8 +348,7 @@ export function runSelectionAction(action: SelectionAction, c: ToolContext): boo
     case 'delete': {
       const ids = selectedTileIds(sel, c);
       if (ids.length === 0 || tooBig(ids.length, c)) return true;
-      c.exec(removeTilesCmd(ids, t.auswahl.loeschen));
-      c.state.selection.value = emptySelection(sel.mode);
+      execWithSelection(c, removeTilesCmd(ids, t.auswahl.loeschen), emptySelection(sel.mode));
       return true;
     }
     case 'rotate':
@@ -309,7 +368,7 @@ export function runSelectionAction(action: SelectionAction, c: ToolContext): boo
         action === 'scaleUp' || action === 'scaleDown'
           ? scaleTiles(c.world, ids, action === 'scaleUp' ? 2 : 0.5, pivot)
           : rotateTiles90(c.world, ids, action === 'rotate' ? 'y' : action === 'rotateX' ? 'x' : 'z', 1, pivot);
-      if (changes.length > 0) c.exec(updateTilesCmd(changes, action.startsWith('scale') ? t.auswahl.mal2 : t.auswahl.drehen));
+      if (changes.length > 0) execWithSelection(c, updateTilesCmd(changes, action.startsWith('scale') ? t.auswahl.mal2 : t.auswahl.drehen), sel);
       return true;
     }
     case 'extrude': {
@@ -321,7 +380,7 @@ export function runSelectionAction(action: SelectionAction, c: ToolContext): boo
       const ids = selectedTileIds(sel, c);
       if (tooBig(ids.length * 5, c)) return true;
       const { update, add } = extrudeTiles(c.world, ids, snap);
-      if (update.length > 0 || add.length > 0) c.exec(editTilesCmd({ add, remove: [], update }, t.auswahl.extrudieren));
+      if (update.length > 0 || add.length > 0) execWithSelection(c, editTilesCmd({ add, remove: [], update }, t.auswahl.extrudieren), sel);
       return true;
     }
     case 'merge': {
@@ -333,8 +392,7 @@ export function runSelectionAction(action: SelectionAction, c: ToolContext): boo
       const mid = [0, 1, 2].map((a) => Math.round(sel.positions.reduce((s, p) => s + p[a], 0) / sel.positions.length / snap) * snap);
       const changes = mergeVertices(c.world, sel.positions, mid, c.editable);
       if (tooBig(changes.length, c)) return true;
-      if (changes.length > 0) c.exec(updateTilesCmd(changes, t.auswahl.zusammenfuehren));
-      c.state.selection.value = { mode: 'vertices', positions: [new Float32Array(mid)] };
+      if (changes.length > 0) execWithSelection(c, updateTilesCmd(changes, t.auswahl.zusammenfuehren), { mode: 'vertices', positions: [new Float32Array(mid)] });
       return true;
     }
   }

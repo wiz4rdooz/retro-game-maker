@@ -1,6 +1,7 @@
 import { effect, signal, type Signal } from '@preact/signals';
 import { useEffect } from 'preact/hooks';
 import { DEFAULT_BRUSH } from '../tools/brush';
+import { pruneSelection } from '../tools/selection';
 import type { EditorState } from '../state/editorState';
 import { installKeyboard } from '../viewport/keyboard';
 import type { ViewportController } from '../viewport/viewportController';
@@ -34,6 +35,9 @@ export function enterSession(ctx: AppCtx, session: EditorSession): void {
   let failing = false;
   session.hooks = {
     onDocChange: () => {
+      // gelöschte Kacheln und verwaiste Ecken fallen aus der Auswahl (auch nach Rückgängig)
+      const pruned = pruneSelection(state.selection.value, session.world);
+      if (pruned) state.selection.value = pruned;
       state.docVersion.value++;
     },
     onSaveStatus: (s, error) => {
