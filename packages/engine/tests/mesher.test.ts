@@ -18,6 +18,15 @@ describe('faceShade (K6)', () => {
 });
 
 describe('buildChunkMesh', () => {
+  it('Kacheln mit fehlendem Tileset erscheinen mit der Prüftextur (−1), statt unsichtbar zu sein', () => {
+    const checker = { id: -1, tileSize: 16, imageWidth: 32, imageHeight: 32 };
+    const w = new World(); w.addLayer('a'); w.addTile(tile({ tileset: 7, tx: 3, ty: 2 }));
+    const parts = buildChunkMesh(w.chunks.get(chunkKeyForPoint(0.5, 0, 0.5))!, new Map([...ts, [-1, checker]]), () => true);
+    expect(parts.map((p) => [p.tileset, p.triangles])).toEqual([[-1, 2]]);
+    expect(Array.from(parts[0].uvs)).toEqual(Array.from(tileUVs(0, 0, 0, false, false, checker, new Float32Array(8))));
+    // ohne Prüftextur in der Liste bleibt es beim Überspringen
+    expect(buildChunkMesh(w.chunks.get(chunkKeyForPoint(0.5, 0, 0.5))!, ts, () => true)).toEqual([]);
+  });
   it('eine Bodenkachel: 4 Ecken, 6 Indizes, UVs und Schattierung', () => {
     const [p] = mesh([tile()]);
     expect(p.positions.length).toBe(12); expect(Array.from(p.indices)).toEqual([0, 1, 2, 0, 2, 3]);

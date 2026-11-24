@@ -32,9 +32,14 @@ const tmpN = new Float32Array(3);
 const ORDER_FRONT = [0, 1, 2, 3];
 const ORDER_BACK = [0, 3, 2, 1];
 
+/** Tileset der eingebauten Prüftextur; Ersatz für fehlende Tilesets. */
+const FALLBACK_TILESET = -1;
+
 /**
  * Baut die Zeichendaten eines Chunks: ein Teil je Tileset, 4 Ecken je Kachelseite.
- * Übersprungen werden verborgene Ebenen, unbekannte Tilesets und entartete Kacheln.
+ * Übersprungen werden verborgene Ebenen und entartete Kacheln. Kacheln, deren Tileset fehlt,
+ * zeigen die erste Kachel der Prüftextur (−1), sofern sie in tilesets steht – sonst wären sie
+ * unsichtbar, aber weiter fest und anklickbar.
  */
 export function buildChunkMesh(
   chunk: Chunk,
@@ -42,13 +47,19 @@ export function buildChunkMesh(
   layerVisible: (layer: number) => boolean,
 ): ChunkMeshPart[] {
   const sides = new Uint8Array(chunk.count);
+  const partOf = new Int32Array(chunk.count);
   const counts = new Map<number, number>();
+  const hasFallback = tilesets.has(FALLBACK_TILESET);
   for (let i = 0; i < chunk.count; i++) {
     if (!layerVisible(chunk.layer[i])) continue;
-    const tsId = chunk.tileset[i];
-    if (!tilesets.has(tsId)) continue;
+    let tsId = chunk.tileset[i];
+    if (!tilesets.has(tsId)) {
+      if (!hasFallback) continue;
+      tsId = FALLBACK_TILESET;
+    }
     if (quadIsDegenerate(chunk.corners, i * 12)) continue;
     sides[i] = (chunk.bits[i] & 16) !== 0 ? 2 : 1;
+    partOf[i] = tsId;
     counts.set(tsId, (counts.get(tsId) ?? 0) + sides[i]);
   }
 
@@ -70,11 +81,12 @@ export function buildChunkMesh(
   const c = chunk.corners;
   for (let i = 0; i < chunk.count; i++) {
     if (sides[i] === 0) continue;
-    const tsId = chunk.tileset[i];
+    const tsId = partOf[i];
     const b = builders.get(tsId)!;
     const info = tilesets.get(tsId)!;
     const bits = chunk.bits[i];
-    tileUVs(chunk.txy[i * 2], chunk.txy[i * 2 + 1], (bits & 3) as 0 | 1 | 2 | 3, (bits & 4) !== 0, (bits & 8) !== 0, info, tmpUv);
+    const own = tsId === chunk.tileset[i];
+    tileUVs(own ? chunk.txy[i * 2] : 0, own ? chunk.txy[i * 2 + 1] : 0, (bits & 3) as 0 | 1 | 2 | 3, (bits & 4) !== 0, (bits & 8) !== 0, info, tmpUv);
     quadNormal(c, tmpN, i * 12);
     writeQuad(b, c, i * 12, ORDER_FRONT, faceShade(tmpN[0], tmpN[1], tmpN[2]));
     if (sides[i] === 2) writeQuad(b, c, i * 12, ORDER_BACK, faceShade(-tmpN[0], -tmpN[1], -tmpN[2]));

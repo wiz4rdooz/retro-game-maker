@@ -38,6 +38,12 @@ export function enterSession(ctx: AppCtx, session: EditorSession): void {
       // gelöschte Kacheln und verwaiste Ecken fallen aus der Auswahl (auch nach Rückgängig)
       const pruned = pruneSelection(state.selection.value, session.world);
       if (pruned) state.selection.value = pruned;
+      // Verschwindet das Tileset des Pinsels (z. B. Import rückgängig), malt er nicht damit weiter
+      const b = state.brush.value;
+      if (b.tileset !== DEFAULT_BRUSH.tileset && !session.project.tilesets.some((ts) => ts.id === b.tileset)) {
+        const first = session.project.tilesets.find((ts) => session.tilesetImages.has(ts.id));
+        state.brush.value = { ...DEFAULT_BRUSH, tileset: first ? first.id : DEFAULT_BRUSH.tileset };
+      }
       state.docVersion.value++;
     },
     onSaveStatus: (s, error) => {
