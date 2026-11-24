@@ -35,6 +35,27 @@ describe('FpsController', () => {
   };
   it('läuft eine 30°-Rampe hoch', () => { const p = new FpsController(rampWorld(30), [0.5, 0, 0.5], 0); run(p, 2, fwd); expect(p.position[1]).toBeGreaterThan(0.5); });
   it('kommt eine 60°-Rampe nicht hoch', () => { const p = new FpsController(rampWorld(60), [0.5, 0, 0.5], 0); run(p, 2, fwd); expect(p.position[1]).toBeLessThan(0.6); });
+  // Stufe 0,3 m, darüber ab z = −1 eine um 3° seitlich geneigte Decke bei ≈ 1,85 m: über der Stufe ist zu wenig Platz
+  const lowCeilingWorld = () => {
+    const w = stepWorld(0.3); const k = Math.tan((3 * Math.PI) / 180);
+    for (let x = -3; x < 3; x++) for (let z = -10; z < -1; z++) {
+      const y0 = 1.85 + k * x, y1 = 1.85 + k * (x + 1);
+      w.addTile(T(new Float32Array([x, y0, z, x + 1, y1, z, x + 1, y1, z + 1, x, y0, z + 1])));
+    }
+    return w;
+  };
+  it('Stufe unter einer zu niedrigen, leicht geneigten Decke: kein Schub zur Seite, die Figur bleibt unten', () => {
+    const p = new FpsController(lowCeilingWorld(), [0.5, 0, 0], 0);
+    let maxStep = 0;
+    for (let i = 0; i < 120; i++) {
+      const x = p.position[0], z = p.position[2];
+      p.update(1 / 60, fwd);
+      maxStep = Math.max(maxStep, Math.hypot(p.position[0] - x, p.position[2] - z));
+    }
+    expect(maxStep).toBeLessThan(DEFAULT_PLAYER.walkSpeed / 60 + 0.02);
+    expect(p.position[1]).toBeLessThan(0.1);
+    expect(Math.abs(p.position[0] - 0.5)).toBeLessThan(0.05);
+  });
   it('Sprunghöhe ≈ v²/(2g) = 1,06 m', () => {
     const p = new FpsController(floorWorld(), [0, 0, 0], 0); run(p, 0.5); let peak = 0;
     p.update(1 / 60, { ...idle, jump: true }); for (let i = 0; i < 90; i++) { p.update(1 / 60, idle); peak = Math.max(peak, p.position[1]); }

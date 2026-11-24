@@ -23,6 +23,8 @@ const PROBE_RING = 0.7;
 /** Wie weit ein fallender Körper unter seine Füße schaut. */
 const PROBE_EPS = 0.01;
 const DOWN = new Float32Array([0, -1, 0]);
+/** Um so viel darf ein Schritt den Kopf tiefer in eine Decke drücken, bevor er nicht stattfindet. */
+const CEILING_EPS = 1e-4;
 
 /**
  * Spielfigur in Ego-Sicht. Der Kollisionskörper ist eine Kapsel, die stepHeight über den Füßen
@@ -38,6 +40,8 @@ export class FpsController {
   grounded = false;
 
   private readonly cfg: PlayerConfig;
+  /** Deckenberührung an der aktuellen Stelle (Wandmodus), für „nicht tiefer hinein“. */
+  private ceilingDepth = 0;
   private readonly spawn = new Float32Array(3);
   private readonly spawnYaw: number;
   private readonly cosMaxSlope: number;
@@ -80,6 +84,7 @@ export class FpsController {
     this.yaw = this.spawnYaw;
     this.pitch = 0;
     this.grounded = false;
+    this.ceilingDepth = 0;
   }
 
   update(dt: number, input: PlayerInput): void {
@@ -158,7 +163,16 @@ export class FpsController {
     const body = this.body;
     body[0] = p[0]; body[1] = p[1] + step; body[2] = p[2];
     const before = body[1];
-    resolveCapsule(body, cfg.radius, this.bodyHeight, this.tris, this.triCount, this.grounded ? Infinity : -Infinity);
+    const res = resolveCapsule(body, cfg.radius, this.bodyHeight, this.tris, this.triCount, this.grounded ? Infinity : -Infinity);
+    // Beim Gehen: kein Schritt (auch keine Stufe) tiefer unter eine zu niedrige Decke und kein
+    // Riesenschub – dann findet dieser Teilschritt nicht statt und die Figur bleibt stehen
+    const shove = Math.hypot(body[0] - p[0], body[2] - p[2]);
+    if (wasGrounded && this.grounded && (res.ceilingDepth > this.ceilingDepth + CEILING_EPS || shove > 2 * cfg.radius)) {
+      p.set(this.prevPos);
+      v.set(this.prevVel);
+      return;
+    }
+    this.ceilingDepth = this.grounded ? res.ceilingDepth : 0;
     if (body[1] < before - 1e-6 && v[1] > 0) v[1] = 0;
     p[0] = body[0]; p[1] = body[1] - step; p[2] = body[2];
 

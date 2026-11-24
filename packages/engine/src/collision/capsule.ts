@@ -4,7 +4,15 @@ export interface CapsuleResult {
   pushed: boolean;
   /** Größtes n.y der Kontakt-Normalen (Richtung Dreieck → Kapsel), −1 ohne Kontakt. */
   groundNy: number;
+  /** Wandmodus: tiefste unaufgelöste Berührung einer Decke (Normale fast senkrecht nach unten), 0 ohne. */
+  ceilingDepth: number;
 }
+
+/**
+ * Wandmodus: Kontakte, deren Normale weniger als 30° von der Senkrechten abweicht, lassen sich
+ * waagerecht nicht sinnvoll auflösen (der Schub wüchse mit 1/hl ins Unendliche) und bleiben stehen.
+ */
+const WALL_MIN_HL = 0.5;
 
 const S = new Float32Array(3);
 const Q = new Float32Array(3);
@@ -17,8 +25,9 @@ const P1 = new Float32Array(3);
 /**
  * Schiebt eine senkrechte Kapsel (Füße bei feet, Achse von feet+r bis feet+height−r) in bis zu
  * 4 Durchläufen aus allen Dreiecken heraus, entlang (Kapselpunkt − Dreieckspunkt).
- * Kontakte mit n.y < wallNy gelten als Wand und werden nur waagerecht aufgelöst; zeigt ihre
- * Normale fast senkrecht, bleibt der Kontakt unaufgelöst. Ohne wallNy wird alles normal aufgelöst.
+ * Kontakte mit n.y < wallNy gelten als Wand und werden nur waagerecht aufgelöst (Schub höchstens
+ * 2 · Eindringtiefe); weicht ihre Normale weniger als 30° von der Senkrechten ab, bleibt der Kontakt
+ * unaufgelöst – bei Decken wird seine Tiefe als ceilingDepth gemeldet. Ohne wallNy wird alles normal aufgelöst.
  */
 export function resolveCapsule(
   feet: Float32Array,
@@ -28,7 +37,7 @@ export function resolveCapsule(
   triCount: number,
   wallNy = -Infinity,
 ): CapsuleResult {
-  const res: CapsuleResult = { pushed: false, groundNy: -1 };
+  const res: CapsuleResult = { pushed: false, groundNy: -1, ceilingDepth: 0 };
   const r = radius;
   const rr = r * r;
   const axis = Math.max(0, height - 2 * r);
@@ -64,7 +73,10 @@ export function resolveCapsule(
       const depth = r - d;
       if (ny < wallNy) {
         const hl = Math.hypot(nx, nz);
-        if (hl < 1e-3) continue;
+        if (hl < WALL_MIN_HL) {
+          if (ny < 0 && depth > res.ceilingDepth) res.ceilingDepth = depth;
+          continue;
+        }
         const amount = depth / hl;
         feet[0] += (nx / hl) * amount;
         feet[2] += (nz / hl) * amount;
