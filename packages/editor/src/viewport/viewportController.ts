@@ -281,6 +281,10 @@ export class ViewportController {
 
   /** Spielschleife an- oder abmelden (Play-Modus). */
   setFrameHook(fn: ((dt: number) => void) | null): void {
+    // Wechsel Editor ↔ Spiel ändert, welche Ebenen gezeichnet werden
+    if ((fn === null) !== (this.frameHook === null) && this.session.world.layers.some((l) => !l.visible)) {
+      this.session.world.markAllRenderDirty();
+    }
     this.frameHook = fn;
     this.lastFrame = performance.now();
     if (fn) this.setPreview(null);
@@ -669,8 +673,10 @@ export class ViewportController {
     // Große Aufbauten (z. B. beim Laden) zeigen einen Fortschritt
     if (this.meshBatch === 0 && this.queue.length > 32) this.meshBatch = this.queue.length;
     else if (this.meshBatch > 0 && this.queue.length > this.meshBatch) this.meshBatch = this.queue.length;
+    // Im Spiel zählt das ganze Spiel: ausgeblendete Ebenen sind dort zu sehen (fest sind sie ohnehin)
+    const playing = this.frameHook !== null;
     const hidden = new Set(world.layers.filter((l) => !l.visible).map((l) => l.id));
-    const visible = (id: number) => !hidden.has(id);
+    const visible = playing ? () => true : (id: number) => !hidden.has(id);
     const t0 = performance.now();
     let i = 0;
     while (i < this.queue.length) {

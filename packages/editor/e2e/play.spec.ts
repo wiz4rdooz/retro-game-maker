@@ -10,3 +10,13 @@ test('F5 startet Play, W läuft, Wand stoppt, Esc kehrt an dieselbe Stelle zurü
   await page.keyboard.press('Escape'); await expect.poll(async () => (await hooks(page, 'state')).mode).toBe('edit');
   expect((await hooks(page, 'state')).camera).toEqual(camBefore);
 });
+test('im Spiel erscheinen auch im Editor ausgeblendete Ebenen – sie sind dort ja fest', async ({ page }) => {
+  await page.goto('/'); await newProject(page);
+  await page.evaluate(() => { const r = (window as any).__rgm; r.exec('addFloor', [-5, -5, 10, 10, 0]); r.setCamera(0.5, 1.7, 0.5, 0, -0.6); });
+  await page.getByRole('button', { name: 'Ebene 1 ausblenden' }).click();
+  await expect.poll(async () => (await hooks(page, 'renderStats')).triangles).toBe(0);
+  await page.keyboard.press('F5'); await expect.poll(async () => (await hooks(page, 'state')).mode).toBe('play');
+  await expect.poll(async () => (await hooks(page, 'renderStats')).triangles).toBeGreaterThan(0);
+  await page.keyboard.press('Escape'); await expect.poll(async () => (await hooks(page, 'state')).mode).toBe('edit');
+  await expect.poll(async () => (await hooks(page, 'renderStats')).triangles).toBe(0);
+});
