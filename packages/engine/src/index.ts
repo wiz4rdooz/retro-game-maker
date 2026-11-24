@@ -13,3 +13,4 @@ export { cellQuad, worldToPlane, planeToWorld, planeOfQuad, axisIndex, type Draw
 export { tileUVs, type TilesetInfo } from './geometry/uv';
 export { BlockFace, blockQuads } from './geometry/block';
 export { buildChunkMesh, faceShade, type ChunkMeshPart } from './mesh/chunkMesher';
+export { raycastWorld, rayPlane, type RayHit } from './pick/raycast';
