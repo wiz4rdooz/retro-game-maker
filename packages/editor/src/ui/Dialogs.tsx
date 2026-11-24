@@ -1,0 +1,96 @@
+import type { ComponentChildren } from 'preact';
+import { useEffect, useRef, useState } from 'preact/hooks';
+import { t } from '../strings/de';
+
+/** Modaler Dialog mit Titel; Escape schließt. */
+export function Dialog({ title, onClose, children }: { title: string; onClose: () => void; children: ComponentChildren }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const prev = document.activeElement as HTMLElement | null;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        onClose();
+      }
+    };
+    const el = ref.current;
+    el?.addEventListener('keydown', onKey);
+    return () => {
+      el?.removeEventListener('keydown', onKey);
+      prev?.focus?.();
+    };
+  }, []);
+  return (
+    <div class="dialog-backdrop">
+      <div ref={ref} role="dialog" aria-modal="true" aria-labelledby="dialog-title" class="dialog">
+        <h2 id="dialog-title">{title}</h2>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+export type StorageKind = 'indexeddb' | 'folder';
+
+/** „Neues Projekt“: Name (Vorgabe „Mein Spiel“) und Speicherort. */
+export function NewProjectDialog({
+  canUseFolder,
+  onCancel,
+  onCreate,
+}: {
+  canUseFolder: boolean;
+  onCancel: () => void;
+  onCreate: (name: string, kind: StorageKind) => void;
+}) {
+  const [name, setName] = useState(t.dialog.vorgabeName);
+  const [kind, setKind] = useState<StorageKind>('indexeddb');
+  const input = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    input.current?.focus();
+    input.current?.select();
+  }, []);
+  return (
+    <Dialog title={t.dialog.neuesProjekt} onClose={onCancel}>
+      <form
+        class="dialog-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          onCreate(name.trim() || t.dialog.vorgabeName, kind);
+        }}
+      >
+        <label class="field">
+          <span>{t.dialog.name}</span>
+          <input
+            ref={input}
+            type="text"
+            value={name}
+            maxLength={80}
+            autoComplete="off"
+            onInput={(e) => setName((e.target as HTMLInputElement).value)}
+          />
+        </label>
+        <fieldset class="field">
+          <legend>{t.dialog.speicherort}</legend>
+          <label class="radio">
+            <input type="radio" name="speicherort" checked={kind === 'indexeddb'} onChange={() => setKind('indexeddb')} />
+            {t.dialog.imBrowser}
+          </label>
+          {canUseFolder && (
+            <label class="radio">
+              <input type="radio" name="speicherort" checked={kind === 'folder'} onChange={() => setKind('folder')} />
+              {t.dialog.imOrdner}
+            </label>
+          )}
+        </fieldset>
+        <div class="dialog-actions">
+          <button type="button" class="btn" onClick={onCancel}>
+            {t.dialog.abbrechen}
+          </button>
+          <button type="submit" class="btn-primary">
+            {t.dialog.anlegen}
+          </button>
+        </div>
+      </form>
+    </Dialog>
+  );
+}
