@@ -9,7 +9,7 @@ import { Viewport } from '../viewport/Viewport';
 import { RightPanel } from '../ui/RightPanel';
 import { StartScreen } from '../ui/StartScreen';
 import { StatusBar } from '../ui/StatusBar';
-import { Toast } from '../ui/Toast';
+import { Toast, showToast } from '../ui/Toast';
 import { ToolRail } from '../ui/ToolRail';
 import { TopBar } from '../ui/TopBar';
 import type { EditorSession } from './session';
@@ -49,6 +49,7 @@ export function enterSession(ctx: AppCtx, session: EditorSession): void {
   state.hover.value = null;
   state.saveStatus.value = session.autosave.pending ? 'ungespeichert' : 'gespeichert';
   state.status.value = session.warnings.length > 0 ? session.warnings.join(' · ') : null;
+  if (session.warnings.length > 0) showToast(session.warnings.join(' '), 10_000);
   ctx.session.value = session;
   state.mode.value = 'edit';
 }

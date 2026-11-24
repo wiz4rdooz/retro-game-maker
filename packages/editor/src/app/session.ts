@@ -4,11 +4,13 @@ import { History } from '../commands/history';
 import { Autosave, type SaveStatus } from '../project/autosave';
 import { FolderStorage } from '../project/folderStorage';
 import { IdbStorage } from '../project/idbStorage';
+import { MemoryStorage } from '../project/memoryStorage';
 import { ProjectIO } from '../project/projectIO';
 import { newProject, type ProjectFile } from '../project/projectModel';
 import { upsertRecent, type RecentEntry } from '../project/recentProjects';
 import type { ProjectStorage } from '../project/storage';
 import { t } from '../strings/de';
+import { newId } from './ids';
 
 export interface SessionHooks {
   onDocChange?: () => void;
@@ -52,17 +54,39 @@ export class EditorSession {
     return { world: this.world, project: this.project };
   }
 
-  /** Legt ein Projekt an (im Browser mit neuer UUID oder im gewählten Ordner), speichert es und trägt es ein. */
+  /**
+   * Legt ein Projekt an (im Browser mit neuer UUID oder im gewählten Ordner), speichert es und trägt
+   * es ein. Fehlt der Browser-Speicher (gesperrt, privater Modus), bleibt es im Arbeitsspeicher – mit Hinweis.
+   */
   static async create(name: string, kind: 'indexeddb' | 'folder', dir?: FileSystemDirectoryHandle): Promise<EditorSession> {
     if (kind === 'folder' && !dir) throw new Error('Ordner fehlt');
-    const id = crypto.randomUUID();
-    const storage: ProjectStorage = kind === 'indexeddb' ? new IdbStorage(id) : new FolderStorage(dir!);
+    const id = newId();
     const { project, world } = newProject(name, new Date());
-    await new ProjectIO(storage, t.fehler).saveAll(project, world);
+    const warnings: string[] = [];
+    let storage: ProjectStorage;
+    if (kind === 'folder') {
+      storage = new FolderStorage(dir!);
+      await new ProjectIO(storage, t.fehler).saveAll(project, world);
+    } else {
+      try {
+        storage = new IdbStorage(id);
+        await new ProjectIO(storage, t.fehler).saveAll(project, world);
+      } catch {
+        storage = new MemoryStorage();
+        await new ProjectIO(storage, t.fehler).saveAll(project, world);
+        warnings.push(t.start.nurArbeitsspeicher);
+      }
+    }
     world.takeSaveDirty();
     const entry: RecentEntry = { id, name, kind, handle: dir, lastOpened: Date.now() };
-    await upsertRecent(entry);
-    return new EditorSession(entry, storage, project, world, new Map(), []);
+    if (storage.kind !== 'memory') {
+      try {
+        await upsertRecent(entry);
+      } catch {
+        /* „Zuletzt geöffnet“ nicht verfügbar – das Projekt selbst ist gespeichert */
+      }
+    }
+    return new EditorSession(entry, storage, project, world, new Map(), warnings);
   }
 
   /** Öffnet ein Projekt aus „Zuletzt geöffnet“; Ordner fragen dabei nach Schreibzugriff. */

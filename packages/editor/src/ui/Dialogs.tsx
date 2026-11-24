@@ -49,15 +49,11 @@ export function NewProjectDialog({
     input.current?.focus();
     input.current?.select();
   }, []);
+  // Ohne <form>-Absenden: in eingebetteten Seiten ohne allow-forms blockt der Browser es ganz
+  const submit = () => onCreate(name.trim() || t.dialog.vorgabeName, kind);
   return (
     <Dialog title={t.dialog.neuesProjekt} onClose={onCancel}>
-      <form
-        class="dialog-form"
-        onSubmit={(e) => {
-          e.preventDefault();
-          onCreate(name.trim() || t.dialog.vorgabeName, kind);
-        }}
-      >
+      <div class="dialog-form">
         <label class="field">
           <span>{t.dialog.name}</span>
           <input
@@ -67,6 +63,12 @@ export function NewProjectDialog({
             maxLength={80}
             autoComplete="off"
             onInput={(e) => setName((e.target as HTMLInputElement).value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                submit();
+              }
+            }}
           />
         </label>
         <fieldset class="field">
@@ -86,11 +88,11 @@ export function NewProjectDialog({
           <button type="button" class="btn" onClick={onCancel}>
             {t.dialog.abbrechen}
           </button>
-          <button type="submit" class="btn-primary">
+          <button type="button" class="btn-primary" onClick={submit}>
             {t.dialog.anlegen}
           </button>
         </div>
-      </form>
+      </div>
     </Dialog>
   );
 }

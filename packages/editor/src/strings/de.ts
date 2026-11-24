@@ -118,7 +118,7 @@ export const t = {
     zip: 'Als ZIP exportieren',
     einstellungen: 'Einstellungen …',
     schliessen: 'Projekt schließen',
-    exportiert: (name: string) => `${name}.zip wurde heruntergeladen.`,
+    exportiert: (name: string) => `Export „${name}.zip“ gestartet.`,
   },
   einstellungen: {
     titel: 'Einstellungen',
@@ -208,6 +208,7 @@ export const t = {
     keinProjekt: 'In diesem Ordner liegt kein Projekt (projekt.json fehlt).',
     keinZugriff: 'Ohne Schreibzugriff auf den Ordner kann das Projekt nicht geöffnet werden.',
     zipFehler: 'Diese ZIP-Datei enthält kein lesbares Projekt.',
+    nurArbeitsspeicher: 'Speichern im Browser ist hier nicht möglich – das Projekt bleibt nur bis zum Neuladen erhalten.',
     testInsel: 'Test-Insel (Leistungstest)',
     testInselName: 'Test-Insel',
   },

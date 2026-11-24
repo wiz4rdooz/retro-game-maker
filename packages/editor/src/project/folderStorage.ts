@@ -1,5 +1,10 @@
 import { decodeText, encodeText, pathSegments, type ProjectStorage } from './storage';
 
+/** Ordner-Zugriff gibt es nur im obersten Fenster (in eingebetteten Seiten blockt der Browser den Dialog). */
+export function folderAccessAvailable(win: Window): boolean {
+  return typeof win.showDirectoryPicker === 'function' && win.self === win.top;
+}
+
 /** Projekt in einem Ordner auf der Festplatte (File System Access API); ein Unterordner je Pfadsegment. */
 export class FolderStorage implements ProjectStorage {
   readonly kind = 'folder';

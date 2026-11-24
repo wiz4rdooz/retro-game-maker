@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { enterSession, type AppCtx } from '../app/App';
+import { newId } from '../app/ids';
 import { EditorSession } from '../app/session';
 import { generateTestIsland } from '@rgm/engine';
+import { folderAccessAvailable } from '../project/folderStorage';
 import { IdbStorage } from '../project/idbStorage';
 import type { TilesetMeta } from '../project/projectModel';
 import { makeTestTileset } from '../project/testTileset';
@@ -20,7 +22,7 @@ export function StartScreen({ ctx }: { ctx: AppCtx }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const zipInput = useRef<HTMLInputElement>(null);
-  const canUseFolder = typeof window.showDirectoryPicker === 'function';
+  const canUseFolder = folderAccessAvailable(window);
 
   const refresh = () =>
     listRecent()
@@ -66,12 +68,12 @@ export function StartScreen({ ctx }: { ctx: AppCtx }) {
       const known = (await listRecent()).filter((e) => e.kind === 'folder' && e.handle);
       let entry: RecentEntry | undefined;
       for (const e of known) if (await e.handle!.isSameEntry(dir)) entry = e;
-      return EditorSession.open(entry ?? { id: crypto.randomUUID(), name: dir.name, kind: 'folder', handle: dir, lastOpened: Date.now() });
+      return EditorSession.open(entry ?? { id: newId(), name: dir.name, kind: 'folder', handle: dir, lastOpened: Date.now() });
     });
 
   const importZipFile = (file: File) =>
     run(async () => {
-      const id = crypto.randomUUID();
+      const id = newId();
       try {
         await importZip(new Uint8Array(await file.arrayBuffer()), new IdbStorage(id));
         return await EditorSession.open({ id, name: file.name.replace(/\.zip$/i, ''), kind: 'indexeddb', lastOpened: Date.now() });
