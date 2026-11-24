@@ -30,6 +30,31 @@ export function quadNormal(corners: V, out: Vec3, base = 0): Vec3 {
   return out;
 }
 
+/** true, wenn alle 12 Koordinaten endlich sind. */
+export function quadIsFinite(corners: V, base = 0): boolean {
+  for (let k = 0; k < 12; k++) if (!Number.isFinite(corners[base + k])) return false;
+  return true;
+}
+
+/** Fläche des Vierecks (halber Betrag des Newell-Vektors; bei nicht endlichen Ecken NaN). */
+export function quadArea(corners: V, base = 0): number {
+  let nx = 0, ny = 0, nz = 0;
+  for (let i = 0; i < 4; i++) {
+    const a = base + i * 3;
+    const b = base + ((i + 1) % 4) * 3;
+    nx += (corners[a + 1] - corners[b + 1]) * (corners[a + 2] + corners[b + 2]);
+    ny += (corners[a + 2] - corners[b + 2]) * (corners[a] + corners[b]);
+    nz += (corners[a] - corners[b]) * (corners[a + 1] + corners[b + 1]);
+  }
+  return Math.hypot(nx, ny, nz) / 2;
+}
+
+/** Entartet: nicht endlich oder Fläche < 1e-8. Ein Dreieck (zwei gleiche Ecken) ist nicht entartet. */
+export function quadIsDegenerate(corners: V, base = 0): boolean {
+  if (!quadIsFinite(corners, base)) return true;
+  return !(quadArea(corners, base) >= 1e-8);
+}
+
 /** Mittelwert der vier Ecken. */
 export function quadCentroid(corners: V, out: Vec3, base = 0): Vec3 {
   out[0] = (corners[base] + corners[base + 3] + corners[base + 6] + corners[base + 9]) / 4;
