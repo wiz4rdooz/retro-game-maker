@@ -14,3 +14,8 @@ export { tileUVs, type TilesetInfo } from './geometry/uv';
 export { BlockFace, blockQuads } from './geometry/block';
 export { buildChunkMesh, faceShade, type ChunkMeshPart } from './mesh/chunkMesher';
 export { raycastWorld, rayPlane, type RayHit } from './pick/raycast';
+export { Camera, type ViewKind } from './render/camera';
+export { extractFrustum, aabbInFrustum, selectVisibleChunks, type ChunkBounds } from './render/frustum';
+export { createGl } from './render/gl';
+export { TileRenderer, CHECKER_TILESET, type RenderStats, type FogOptions } from './render/tileRenderer';
+export { LineRenderer } from './render/lineRenderer';
