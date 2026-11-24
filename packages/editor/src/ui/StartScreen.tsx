@@ -11,7 +11,7 @@ import { PROJECT_FILE } from '../project/projectIO';
 import { listRecent, removeRecent, type RecentEntry } from '../project/recentProjects';
 import { importZip } from '../project/zip';
 import { t } from '../strings/de';
-import { NewProjectDialog, type StorageKind } from './Dialogs';
+import { ConfirmDialog, NewProjectDialog, type StorageKind } from './Dialogs';
 import { IconClose, IconCube, IconFolder, IconPlus, IconUpload } from './icons';
 
 const dateFmt = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeStyle: 'short' });
@@ -21,6 +21,7 @@ export function StartScreen({ ctx }: { ctx: AppCtx }) {
   const [dialog, setDialog] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [toDelete, setToDelete] = useState<RecentEntry | null>(null);
   const zipInput = useRef<HTMLInputElement>(null);
   const canUseFolder = folderAccessAvailable(window);
 
@@ -174,10 +175,15 @@ export function StartScreen({ ctx }: { ctx: AppCtx }) {
                 <button
                   type="button"
                   class="icon-btn"
-                  aria-label={t.start.entfernen(e.name)}
-                  title={t.start.entfernen(e.name)}
+                  aria-label={e.kind === 'indexeddb' ? t.start.loeschen(e.name) : t.start.entfernen(e.name)}
+                  title={e.kind === 'indexeddb' ? t.start.loeschen(e.name) : t.start.entfernen(e.name)}
                   disabled={busy}
                   onClick={async () => {
+                    // ein Browser-Projekt gibt es nur in dieser Liste – also erst fragen, dann ganz löschen
+                    if (e.kind === 'indexeddb') {
+                      setToDelete(e);
+                      return;
+                    }
                     await removeRecent(e.id);
                     await refresh();
                   }}
@@ -190,6 +196,25 @@ export function StartScreen({ ctx }: { ctx: AppCtx }) {
         </section>
       </div>
       {dialog && <NewProjectDialog canUseFolder={canUseFolder} onCancel={() => setDialog(false)} onCreate={create} />}
+      {toDelete && (
+        <ConfirmDialog
+          title={t.start.loeschenTitel}
+          message={t.start.loeschenFrage(toDelete.name)}
+          confirmLabel={t.dialog.loeschen}
+          onCancel={() => setToDelete(null)}
+          onConfirm={async () => {
+            const e = toDelete;
+            setToDelete(null);
+            try {
+              await new IdbStorage(e.id).clearAll();
+              await removeRecent(e.id);
+            } catch (err) {
+              setError(err instanceof Error ? err.message : String(err));
+            }
+            await refresh();
+          }}
+        />
+      )}
     </div>
   );
 }

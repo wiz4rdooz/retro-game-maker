@@ -206,6 +206,10 @@ export const t = {
     leer: 'Noch keine Projekte. Leg mit „Neues Projekt“ los.',
     oeffnen: (name: string) => `${name} öffnen`,
     entfernen: (name: string) => `${name} aus der Liste entfernen`,
+    loeschen: (name: string) => `${name} löschen`,
+    loeschenTitel: 'Projekt löschen',
+    loeschenFrage: (name: string) =>
+      `Das Browser-Projekt „${name}“ wird mit allen Kacheln und Tilesets endgültig gelöscht. Das lässt sich nicht rückgängig machen.`,
     imBrowser: 'Im Browser',
     imOrdner: 'Ordner auf dem PC',
     oeffnet: 'Wird geöffnet …',

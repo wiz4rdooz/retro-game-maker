@@ -1,4 +1,4 @@
-import { createStore, del, get, keys, set, type UseStore } from 'idb-keyval';
+import { clear, createStore, del, get, keys, set, type UseStore } from 'idb-keyval';
 import { decodeText, encodeText, pathSegments, type ProjectStorage } from './storage';
 
 /** Projekt im Browser-Speicher: eine Datenbank `rgm-projekt-<id>` mit dem Store `dateien`. */
@@ -34,6 +34,11 @@ export class IdbStorage implements ProjectStorage {
 
   async remove(path: string): Promise<void> {
     await del(path, this.store);
+  }
+
+  /** Löscht alle Dateien des Projekts (die leere Datenbank bleibt, solange sie geöffnet ist). */
+  async clearAll(): Promise<void> {
+    await clear(this.store);
   }
 
   async list(prefix: string): Promise<string[]> {
