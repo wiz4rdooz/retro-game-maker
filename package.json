@@ -1,0 +1,21 @@
+{
+  "name": "retro-game-maker",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "typecheck": "tsc -p packages/engine",
+    "test": "vitest run",
+    "bench": "vitest bench --run",
+    "test:e2e": "playwright test",
+    "build": "npm run build -w @rgm/editor",
+    "dev": "npm run dev -w @rgm/editor"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.1"
+  }
+}
