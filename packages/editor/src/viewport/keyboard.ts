@@ -10,12 +10,15 @@ export interface KeyboardHandlers {
   onKey(e: KeyboardEvent): boolean;
 }
 
+/** Eingaben ohne Tipp-Bedeutung: nach einem Häkchen oder Knopf wirken die Editor-Tasten weiter. */
+const NON_TEXT_INPUTS = new Set(['checkbox', 'radio', 'button', 'submit', 'reset', 'color', 'file', 'image']);
+
 /** true, wenn das Ereignis aus einem Eingabefeld, einem Menü oder einem Dialog kommt. */
 export function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;
-  return (
-    target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="menu"], [role="dialog"]') !== null
-  );
+  if (target.closest('[role="menu"], [role="dialog"]') !== null) return true;
+  if (target instanceof HTMLInputElement) return !NON_TEXT_INPUTS.has(target.type);
+  return target.closest('textarea, select, [contenteditable]:not([contenteditable="false"])') !== null;
 }
 
 /**

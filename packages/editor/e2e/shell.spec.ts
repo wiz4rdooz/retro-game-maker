@@ -44,3 +44,10 @@ test('die Ansicht rendert eine Kachel (Pixeltest)', async ({ page }) => {
   const px = await page.evaluate(([x, y]) => (window as any).__rgm.pixelAt(x, y), [box.width / 2, box.height / 2]);
   expect(px.slice(0, 3)).not.toEqual([0x16, 0x18, 0x1b]);
 });
+test('nach einem Häkchen im Pinsel-Bereich wirken die Werkzeug-Tasten weiter', async ({ page }) => {
+  await page.goto('/'); await newProject(page);
+  await page.getByRole('checkbox', { name: 'Beidseitig' }).check();
+  await expect(page.getByRole('checkbox', { name: 'Beidseitig' })).toBeFocused();
+  await page.keyboard.press('k');
+  await expect(page.getByRole('button', { name: /Block setzen/ })).toHaveAttribute('aria-pressed', 'true');
+});
