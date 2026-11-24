@@ -6,7 +6,7 @@
     "packages/*"
   ],
   "scripts": {
-    "typecheck": "tsc -p packages/engine",
+    "typecheck": "tsc -p packages/engine && tsc -p packages/runtime",
     "test": "vitest run",
     "bench": "vitest bench --run --reporter=verbose",
     "test:e2e": "playwright test",

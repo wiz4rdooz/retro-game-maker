@@ -19,3 +19,6 @@ export { extractFrustum, aabbInFrustum, selectVisibleChunks, type ChunkBounds } 
 export { createGl } from './render/gl';
 export { TileRenderer, CHECKER_TILESET, type RenderStats, type FogOptions } from './render/tileRenderer';
 export { LineRenderer } from './render/lineRenderer';
+export { closestPointOnTriangle, closestSegmentSegment, closestSegmentTriangle } from './collision/closest';
+export { collectTriangles } from './collision/triangles';
+export { resolveCapsule, type CapsuleResult } from './collision/capsule';
