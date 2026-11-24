@@ -22,3 +22,14 @@ export { LineRenderer } from './render/lineRenderer';
 export { closestPointOnTriangle, closestSegmentSegment, closestSegmentTriangle } from './collision/closest';
 export { collectTriangles } from './collision/triangles';
 export { resolveCapsule, type CapsuleResult } from './collision/capsule';
+export {
+  FORMAT_VERSION,
+  FormatError,
+  encodeWorldMeta,
+  decodeWorldMeta,
+  encodeChunk,
+  decodeChunkInto,
+  chunkFileName,
+  type FormatMessages,
+  type WorldMeta,
+} from './world/serialize';

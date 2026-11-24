@@ -49,12 +49,17 @@ export function newProject(name: string, now: Date): { project: ProjectFile; wor
     worlds: [DEFAULT_WORLD],
     tilesets: [],
     nextTilesetId: 0,
-    editor: {
-      camera: { x: 0, y: 6, z: 12, yaw: 0, pitch: (-25 * Math.PI) / 180 },
-      activeLayer: layer.id,
-      snap: 1,
-      drawPlane: 'auto',
-    },
+    editor: defaultEditorPrefs(layer.id),
   };
   return { project, world };
+}
+
+/** Kamera (0, 6, 12) mit yaw 0 und pitch −25°, Raster 1, Zeichenebene automatisch. */
+export function defaultEditorPrefs(activeLayer: number): EditorPrefs {
+  return {
+    camera: { x: 0, y: 6, z: 12, yaw: 0, pitch: (-25 * Math.PI) / 180 },
+    activeLayer,
+    snap: 1,
+    drawPlane: 'auto',
+  };
 }
