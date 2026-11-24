@@ -1,5 +1,5 @@
 import type { ComponentChildren } from 'preact';
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { t } from '../strings/de';
 
 /** Modaler Dialog mit Titel; Escape schließt. */
@@ -45,7 +45,7 @@ export function NewProjectDialog({
   const [name, setName] = useState(t.dialog.vorgabeName);
   const [kind, setKind] = useState<StorageKind>('indexeddb');
   const input = useRef<HTMLInputElement>(null);
-  useEffect(() => {
+  useLayoutEffect(() => {
     input.current?.focus();
     input.current?.select();
   }, []);
@@ -91,6 +91,37 @@ export function NewProjectDialog({
           </button>
         </div>
       </form>
+    </Dialog>
+  );
+}
+
+/** Rückfrage mit „Löschen“ (oder anderem Text) und „Abbrechen“; Abbrechen hat den Fokus. */
+export function ConfirmDialog({
+  title,
+  message,
+  confirmLabel,
+  onConfirm,
+  onCancel,
+}: {
+  title: string;
+  message: string;
+  confirmLabel: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const cancel = useRef<HTMLButtonElement>(null);
+  useLayoutEffect(() => cancel.current?.focus(), []);
+  return (
+    <Dialog title={title} onClose={onCancel}>
+      <p class="dialog-text">{message}</p>
+      <div class="dialog-actions">
+        <button ref={cancel} type="button" class="btn" onClick={onCancel}>
+          {t.dialog.abbrechen}
+        </button>
+        <button type="button" class="btn-danger" onClick={onConfirm}>
+          {confirmLabel}
+        </button>
+      </div>
     </Dialog>
   );
 }

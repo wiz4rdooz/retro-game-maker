@@ -47,3 +47,8 @@ export function updatePrefs(patch: Partial<Prefs>): void {
   prefs.value = { ...prefs.value, ...patch };
   savePrefs(prefs.value);
 }
+
+/** Oberflächengröße als CSS-Variable --ui-scale (die 3D-Ansicht selbst wird nicht gezoomt). */
+export function applyUiScale(scale: number): void {
+  globalThis.document?.documentElement.style.setProperty('--ui-scale', String(Math.min(2, Math.max(1, scale))));
+}

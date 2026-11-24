@@ -49,6 +49,19 @@ export function enterSession(ctx: AppCtx, session: EditorSession): void {
   state.mode.value = 'edit';
 }
 
+/** Speichert, schließt die Sitzung und kehrt zum Startbildschirm zurück. */
+export async function leaveSession(ctx: AppCtx): Promise<void> {
+  const session = ctx.session.value;
+  if (!session) return;
+  await session.close();
+  const { state } = ctx;
+  state.mode.value = 'start';
+  state.hover.value = null;
+  state.status.value = null;
+  state.selection.value = { mode: 'tiles', ids: new Set() };
+  ctx.session.value = null;
+}
+
 export function App({ ctx }: { ctx: AppCtx }) {
   const { state } = ctx;
   const session = ctx.session.value;

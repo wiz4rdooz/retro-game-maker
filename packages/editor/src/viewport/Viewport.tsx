@@ -4,6 +4,7 @@ import type { AppCtx } from '../app/App';
 import type { EditorSession } from '../app/session';
 import { t } from '../strings/de';
 import { HintCard } from '../ui/HintCard';
+import { StatsOverlay } from '../ui/StatsOverlay';
 import { AxisGizmo } from './AxisGizmo';
 import { NoWebGl2Error, ViewportController } from './viewportController';
 
@@ -61,6 +62,7 @@ export function Viewport({ ctx, session }: { ctx: AppCtx; session: EditorSession
       {ctrl && <AxisGizmo ctrl={ctrl} />}
       <p class="camera-hint">{t.kamera}</p>
       <HintCard state={state} />
+      {ctrl && <StatsOverlay ctx={ctx} />}
     </main>
   );
 }

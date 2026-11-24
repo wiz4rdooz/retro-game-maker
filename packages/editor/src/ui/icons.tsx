@@ -97,3 +97,18 @@ export const IconPlus: IconComponent = ({ size = 18 }) => (
     <path d="M12 5v14M5 12h14" />
   </Icon>
 );
+export const IconLock: IconComponent = ({ size = 18 }) => (
+  <Icon size={size}>
+    <path d="M7 11V8a5 5 0 0 1 10 0v3M6 11h12a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1z" />
+  </Icon>
+);
+export const IconTrash: IconComponent = ({ size = 18 }) => (
+  <Icon size={size}>
+    <path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 12.5h9L17.5 7M10 10.5v6M14 10.5v6" />
+  </Icon>
+);
+export const IconMenu: IconComponent = ({ size = 16 }) => (
+  <Icon size={size}>
+    <path d="M6 9l6 6 6-6" />
+  </Icon>
+);

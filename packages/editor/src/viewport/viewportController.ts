@@ -73,6 +73,9 @@ export class ViewportController {
   private preview: Preview | null = null;
   private ghostParts: ChunkMeshPart[] = [];
   private lastStats: RenderStats = { drawCalls: 0, visibleChunks: 0, triangles: 0 };
+  private fps = 0;
+  private fpsFrames = 0;
+  private fpsStart = 0;
   private raf = 0;
   private lastFrame = 0;
   private disposed = false;
@@ -221,7 +224,9 @@ export class ViewportController {
       const flying = this.cam.update(dt, this.keys);
       const more = this.remesh(MESH_BUDGET_MS);
       this.draw();
-      if (more || flying) this.requestRender();
+      this.countFrame(now);
+      // Mit Statistik wird durchgehend gezeichnet, sonst wäre „Bilder/s“ bedeutungslos
+      if (more || flying || this.state.statsVisible.value) this.requestRender();
     });
   }
 
@@ -250,8 +255,7 @@ export class ViewportController {
   /** Farbe an einer Stelle (CSS-Pixel relativ zur Ansicht); zeichnet dafür sofort ein Bild. */
   readPixel(cssX: number, cssY: number): [number, number, number, number] {
     const gl = this.gl;
-    this.remesh(Infinity);
-    this.draw();
+    this.renderNow();
     const w = this.canvas.width, h = this.canvas.height;
     const sx = w / Math.max(1, this.canvas.clientWidth);
     const sy = h / Math.max(1, this.canvas.clientHeight);
@@ -264,6 +268,32 @@ export class ViewportController {
 
   stats(): RenderStats {
     return { ...this.lastStats };
+  }
+
+  /** Werte der Statistik-Anzeige (F3). */
+  fullStats(): RenderStats & { fps: number; tiles: number } {
+    return { ...this.lastStats, fps: this.fps, tiles: this.session.world.tileCount() };
+  }
+
+  /** Vernetzt alles Ausstehende und zeichnet sofort (für Tests und Pixel-Abfragen). */
+  renderNow(): void {
+    if (this.disposed || this.gl.isContextLost()) return;
+    this.remesh(Infinity);
+    this.draw();
+  }
+
+  private countFrame(now: number): void {
+    if (this.fpsStart === 0 || now - this.fpsStart > 2000) {
+      this.fpsStart = now;
+      this.fpsFrames = 0;
+    }
+    this.fpsFrames++;
+    const span = now - this.fpsStart;
+    if (span >= 1000) {
+      this.fps = ((this.fpsFrames - 1) * 1000) / span;
+      this.fpsStart = now;
+      this.fpsFrames = 1;
+    }
   }
 
   dispose(): void {
@@ -283,6 +313,11 @@ export class ViewportController {
     const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
     if (this.cam.looking && (CameraController.isFlyKey(k) || k === 'Shift')) return true;
     if (k === ' ' && (this.pointerInside || this.cam.panning)) return true;
+    if (k === 'F3') {
+      this.state.statsVisible.value = !this.state.statsVisible.value;
+      this.requestRender();
+      return true;
+    }
     if (this.tool.key(e, this.toolCtx)) return true;
     if (k === 'q' && !e.ctrlKey && !e.metaKey && !e.altKey) {
       this.state.drawPlane.value = nextPlaneMode(this.state.drawPlane.value);

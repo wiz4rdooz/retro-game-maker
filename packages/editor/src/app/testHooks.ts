@@ -57,7 +57,12 @@ export function installTestHooks(ctx: AppCtx): void {
         canRedo: s?.history.canRedo ?? false,
       });
     },
-    renderStats: () => view()?.stats() ?? null,
+    renderStats: () => {
+      const v = view();
+      if (!v) return null;
+      v.renderNow();
+      return v.fullStats();
+    },
     pixelAt: (x: number, y: number) => view()?.readPixel(x, y) ?? null,
     tiles: () => session()?.world.tileCount() ?? 0,
     tile: (id: number) => {

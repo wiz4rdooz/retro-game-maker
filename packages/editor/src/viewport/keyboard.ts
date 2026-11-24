@@ -10,10 +10,12 @@ export interface KeyboardHandlers {
   onKey(e: KeyboardEvent): boolean;
 }
 
-/** true, wenn das Ereignis aus einem Eingabefeld kommt. */
+/** true, wenn das Ereignis aus einem Eingabefeld, einem Menü oder einem Dialog kommt. */
 export function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;
-  return target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])') !== null;
+  return (
+    target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="menu"], [role="dialog"]') !== null
+  );
 }
 
 /**
