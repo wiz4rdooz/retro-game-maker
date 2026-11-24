@@ -33,3 +33,4 @@ export {
   type FormatMessages,
   type WorldMeta,
 } from './world/serialize';
+export { floodCoplanar } from './geometry/adjacency';

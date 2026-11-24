@@ -1,7 +1,9 @@
 import { t } from '../strings/de';
 import { IconBucket, IconCube, IconCursor, IconEraser, IconPencil, IconPipette, type IconComponent } from '../ui/icons';
+import { BlockTool } from './blockTool';
 import { EraseTool } from './eraseTool';
 import { EyedropperTool } from './eyedropperTool';
+import { FillTool } from './fillTool';
 import { PaintTool } from './paintTool';
 import type { Tool, ToolContext, ToolPointer } from './tool';
 
@@ -41,7 +43,7 @@ export function toolForKey(key: string): ToolId | null {
   return null;
 }
 
-/** Platzhalter für Werkzeuge, die noch folgen (Block, Auswählen, Füllen). */
+/** Platzhalter für Werkzeuge, die noch folgen (Auswählen). */
 class PendingTool implements Tool {
   constructor(readonly id: ToolId) {}
   pointerDown(_p: ToolPointer, c: ToolContext): void {
@@ -63,6 +65,10 @@ export function createTool(id: ToolId): Tool {
       return new EyedropperTool();
     case 'erase':
       return new EraseTool();
+    case 'block':
+      return new BlockTool();
+    case 'fill':
+      return new FillTool();
     default:
       return new PendingTool(id);
   }

@@ -1,4 +1,4 @@
-import { Camera, mat4, raycastWorld, vec3, type TileData } from '@rgm/engine';
+import { Camera, mat4, quadNormal, raycastWorld, vec3, type TileData } from '@rgm/engine';
 import type { DocCtx } from '../src/commands/command';
 import { History } from '../src/commands/history';
 import { newProject } from '../src/project/projectModel';
@@ -144,5 +144,15 @@ export function makeToolHarness(toolId: ToolId) {
       return world.getTile(ids[0])!;
     },
     tileIds,
+    /** Kacheln, deren Normale ungefähr normal ist. */
+    tilesFacing(normal: [number, number, number]): TileData[] {
+      const n = vec3.create();
+      return tileIds()
+        .map((id) => world.getTile(id)!)
+        .filter((tile) => vec3.dot(quadNormal(tile.corners, n), normal) > 0.99);
+    },
+    countWhere(pred: (tile: TileData) => boolean): number {
+      return tileIds().filter((id) => pred(world.getTile(id)!)).length;
+    },
   };
 }

@@ -74,6 +74,7 @@ export const t = {
     rasterWechseln: 'Rasterschritt wechseln (1 → ½ → ¼)',
     pinsel: (name: string) => `Pinsel ${name}`,
     zuGross: 'Zu groß: höchstens 65.536 Kacheln auf einmal.',
+    zuVieleBloecke: 'Zu groß: höchstens 4.096 Blöcke auf einmal.',
     ebeneGesperrt: 'Diese Ebene ist gesperrt oder ausgeblendet.',
     folgt: 'Dieses Werkzeug folgt in Kürze.',
   },
