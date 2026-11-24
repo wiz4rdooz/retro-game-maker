@@ -12,3 +12,4 @@ export { quadNormal, quadCentroid, quadArea, quadIsFinite, quadIsDegenerate } fr
 export { cellQuad, worldToPlane, planeToWorld, planeOfQuad, axisIndex, type DrawPlane, type PlaneAxis } from './geometry/plane';
 export { tileUVs, type TilesetInfo } from './geometry/uv';
 export { BlockFace, blockQuads } from './geometry/block';
+export { buildChunkMesh, faceShade, type ChunkMeshPart } from './mesh/chunkMesher';

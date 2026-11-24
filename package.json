@@ -8,7 +8,7 @@
   "scripts": {
     "typecheck": "tsc -p packages/engine",
     "test": "vitest run",
-    "bench": "vitest bench --run",
+    "bench": "vitest bench --run --reporter=verbose",
     "test:e2e": "playwright test",
     "build": "npm run build -w @rgm/editor",
     "dev": "npm run dev -w @rgm/editor"
