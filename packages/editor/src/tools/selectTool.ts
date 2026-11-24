@@ -16,6 +16,7 @@ import {
   pickVertex,
   posKey,
   runSelectionAction,
+  selectedTileIds,
   selectionMoveChanges,
   shifted,
   tilesInRect,
@@ -141,6 +142,13 @@ export class SelectTool implements Tool {
       return;
     }
     if (!d.active && Math.hypot(p.px - d.x0, p.py - d.y0) < DRAG_PX) return;
+    if (!d.active && selectedTileIds(c.state.selection.value, c).length > MAX_TILES_PER_OP) {
+      // Grenze prüfen, bevor die teure Vorschau entsteht (Review Focus 5): gleich ablehnen
+      c.notify(t.status.zuGross);
+      this.drag = null;
+      c.setPreview(null);
+      return;
+    }
     d.active = true;
     const delta = this.moveDelta(p, c, d);
     if (!delta || (delta[0] === d.delta[0] && delta[1] === d.delta[1] && delta[2] === d.delta[2])) return;
