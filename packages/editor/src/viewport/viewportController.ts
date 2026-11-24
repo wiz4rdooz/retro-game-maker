@@ -7,8 +7,13 @@ import {
   TileRenderer,
   buildChunkMesh,
   createGl,
+  mat4,
+  planeToWorld,
   raycastWorld,
   vec3,
+  worldToPlane,
+  type DrawPlane,
+  type RayHit,
   type ChunkMeshPart,
   type FogOptions,
   type RenderStats,
@@ -18,6 +23,10 @@ import {
 } from '@rgm/engine';
 import type { EditorSession } from '../app/session';
 import type { EditorState } from '../state/editorState';
+import { PlaneResolver, nextPlaneMode, planeLabel } from '../tools/drawPlane';
+import { createTool } from '../tools/registry';
+import { pointerTarget, type Tool, type ToolContext, type ToolPointer } from '../tools/tool';
+import { showToast } from '../ui/Toast';
 import { isTypingTarget } from './keyboard';
 import { CameraController } from './cameraController';
 
@@ -36,6 +45,8 @@ const FOG: FogOptions = { color: BG, start: 110, end: 160, viewDistance: 160 };
 const ACCENT: [number, number, number, number] = [0x4d / 255, 0x9f / 255, 1, 1];
 const MESH_BUDGET_MS = 8;
 const GHOST_ALPHA = 0.6;
+const GRID_RGBA: [number, number, number, number] = [1, 1, 1, 0.22];
+const GRID_CELLS = 24;
 
 /**
  * Zeichnet die Welt bei Bedarf (Kamera, Welt, Hover, Vorschau). Vor jedem Bild werden geänderte
@@ -65,6 +76,14 @@ export class ViewportController {
   private pointerInside = false;
   private readonly rayO = vec3.create();
   private readonly rayD = vec3.create();
+  readonly planes = new PlaneResolver();
+  private tool: Tool;
+  private readonly toolCtx: ToolContext;
+  /** Zeiger gehört gerade dem Werkzeug (gedrückt). */
+  private toolDown = false;
+  private grid: Float32Array = new Float32Array(0);
+  private cursorLines: Float32Array = new Float32Array(0);
+  private readonly vp = mat4.create();
   private readonly cleanups: (() => void)[] = [];
 
   constructor(
@@ -87,6 +106,8 @@ export class ViewportController {
     this.camera.pitch = c.pitch;
     this.camera.view = state.view.value;
     this.cam = new CameraController(this.camera, () => this.cameraChanged());
+    this.toolCtx = this.makeToolContext();
+    this.tool = createTool(state.tool.value);
 
     this.syncTilesets();
     session.world.markAllRenderDirty();
@@ -105,6 +126,20 @@ export class ViewportController {
       }),
       effect(() => {
         this.cam.setView(state.view.value);
+        this.requestRender();
+      }),
+      effect(() => {
+        const id = state.tool.value;
+        if (this.tool.id === id) return;
+        this.tool.deactivate?.(this.toolCtx);
+        this.toolDown = false;
+        this.tool = createTool(id);
+        this.setPreview(null);
+      }),
+      effect(() => {
+        void state.drawPlane.value;
+        void state.snap.value;
+        this.updateCursorLines();
         this.requestRender();
       }),
     );
@@ -200,6 +235,7 @@ export class ViewportController {
 
   dispose(): void {
     if (this.disposed) return;
+    this.tool.deactivate?.(this.toolCtx);
     this.disposed = true;
     cancelAnimationFrame(this.raf);
     for (const fn of this.cleanups) fn();
@@ -214,6 +250,17 @@ export class ViewportController {
     const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
     if (this.cam.looking && (CameraController.isFlyKey(k) || k === 'Shift')) return true;
     if (k === ' ' && (this.pointerInside || this.cam.panning)) return true;
+    if (k === 'q' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      this.state.drawPlane.value = nextPlaneMode(this.state.drawPlane.value);
+      return true;
+    }
+    if (k === 'PageUp' || k === 'PageDown') {
+      this.planes.offsetCursor(k === 'PageUp' ? 1 : -1, this.state.snap.value);
+      this.updateCursorLines();
+      this.requestRender();
+      return true;
+    }
+    if (this.tool.key(e, this.toolCtx)) return true;
     if (k === 'f' && !e.ctrlKey && !e.metaKey && !e.altKey) {
       const hover = this.state.hover.value;
       const b = this.session.world.bounds();
@@ -225,12 +272,101 @@ export class ViewportController {
   }
 
   /** Erster Treffer unter dem Zeiger (CSS-Pixel) auf sichtbaren Ebenen. */
-  pick(cssX: number, cssY: number) {
+  pick(cssX: number, cssY: number): RayHit | null {
     const w = Math.max(1, this.canvas.clientWidth);
     const h = Math.max(1, this.canvas.clientHeight);
-    this.camera.screenRay((cssX / w) * 2 - 1, 1 - (cssY / h) * 2, w / h, this.rayO, this.rayD);
+    return this.raycastNdc((cssX / w) * 2 - 1, 1 - (cssY / h) * 2);
+  }
+
+  private raycastNdc(ndcX: number, ndcY: number): RayHit | null {
+    this.camera.screenRay(ndcX, ndcY, this.aspect(), this.rayO, this.rayD);
     const hidden = new Set(this.session.world.layers.filter((l) => !l.visible).map((l) => l.id));
     return raycastWorld(this.session.world, this.rayO, this.rayD, 2000, (id) => !hidden.has(id));
+  }
+
+  private aspect(): number {
+    return Math.max(1, this.canvas.clientWidth) / Math.max(1, this.canvas.clientHeight);
+  }
+
+  private makeToolContext(): ToolContext {
+    const session = this.session;
+    return {
+      world: session.world,
+      history: session.history,
+      state: this.state,
+      camera: this.camera,
+      planes: this.planes,
+      exec: (cmd) => session.exec(cmd),
+      aspect: () => this.aspect(),
+      raycast: (x, y) => this.raycastNdc(x, y),
+      screenRay: (x, y, o, d) => this.camera.screenRay(x, y, this.aspect(), o, d),
+      editable: (layer) => {
+        const l = session.world.layers.find((x) => x.id === layer);
+        return !!l && l.visible && !l.locked;
+      },
+      setPreview: (p) => this.setPreview(p),
+      notify: (msg) => showToast(msg),
+      project: (p, out) => {
+        const m = this.camera.viewProj(this.vp, this.aspect());
+        const x = p[0], y = p[1], z = p[2];
+        const w = m[3] * x + m[7] * y + m[11] * z + m[15];
+        if (!(w > 1e-6)) return false;
+        const nx = (m[0] * x + m[4] * y + m[8] * z + m[12]) / w;
+        const ny = (m[1] * x + m[5] * y + m[9] * z + m[13]) / w;
+        out[0] = ((nx + 1) / 2) * this.canvas.clientWidth;
+        out[1] = ((1 - ny) / 2) * this.canvas.clientHeight;
+        return Number.isFinite(out[0]) && Number.isFinite(out[1]);
+      },
+    };
+  }
+
+  private toolPointer(e: PointerEvent): ToolPointer {
+    const w = Math.max(1, this.canvas.clientWidth);
+    const h = Math.max(1, this.canvas.clientHeight);
+    return {
+      ndcX: (e.offsetX / w) * 2 - 1,
+      ndcY: 1 - (e.offsetY / h) * 2,
+      px: e.offsetX,
+      py: e.offsetY,
+      button: e.button === 2 ? 2 : 0,
+      shift: e.shiftKey,
+      alt: e.altKey,
+      ctrl: e.ctrlKey || e.metaKey,
+    };
+  }
+
+  /** Hover-Anzeige und Raster um den Punkt unter dem Zeiger. */
+  private updateHover(p: ToolPointer): void {
+    const tgt = pointerTarget(p, this.toolCtx);
+    const pt = tgt.hit?.point ?? tgt.point;
+    if (!pt) {
+      this.state.hover.value = null;
+      this.grid = new Float32Array(0);
+      return;
+    }
+    this.state.hover.value = { point: [pt[0], pt[1], pt[2]], planeLabel: planeLabel(tgt.plane), tileId: tgt.hit?.tileId ?? null };
+    this.grid = tgt.point ? buildGrid(tgt.plane, tgt.point, this.state.snap.value) : new Float32Array(0);
+  }
+
+  private clearHover(): void {
+    this.state.hover.value = null;
+    this.grid = new Float32Array(0);
+    if (!this.toolDown) this.setPreview(null);
+  }
+
+  /** Kreuz am 3D-Cursor, wenn die Zeichenebene an ihm hängt (x/y/z). */
+  private updateCursorLines(): void {
+    if (this.state.drawPlane.value === 'auto') {
+      this.cursorLines = new Float32Array(0);
+      return;
+    }
+    const c = this.planes.cursor;
+    const r = 0.5;
+    this.cursorLines = new Float32Array([
+      c[0] - r, c[1], c[2], c[0] + r, c[1], c[2],
+      c[0], c[1] - r, c[2], c[0], c[1] + r, c[2],
+      c[0], c[1], c[2] - r, c[0], c[1], c[2] + r,
+    ]);
   }
 
   private cameraChanged(): void {
@@ -258,13 +394,36 @@ export class ViewportController {
         canvas.focus({ preventScroll: true });
         canvas.setPointerCapture(e.pointerId);
         this.lastFrame = performance.now();
+        return;
       }
+      if ((e.button !== 0 && e.button !== 2) || this.toolDown) return;
+      e.preventDefault();
+      canvas.focus({ preventScroll: true });
+      const p = this.toolPointer(e);
+      if (p.ctrl && e.button === 0) {
+        // Strg+Klick setzt den 3D-Cursor
+        const tgt = pointerTarget(p, this.toolCtx);
+        const pt = tgt.hit?.point ?? tgt.point;
+        if (pt) this.planes.setCursor(pt, this.state.snap.value);
+        this.updateCursorLines();
+        this.requestRender();
+        return;
+      }
+      canvas.setPointerCapture(e.pointerId);
+      this.toolDown = true;
+      this.tool.pointerDown(p, this.toolCtx);
     };
     const move = (e: PointerEvent) => {
-      this.cam.pointerMove(e.offsetX, e.offsetY);
+      if (this.cam.pointerMove(e.offsetX, e.offsetY)) return;
+      const p = this.toolPointer(e);
+      this.updateHover(p);
+      this.tool.pointerMove(p, this.toolCtx);
     };
     const up = (e: PointerEvent) => {
       this.cam.pointerUp(e.button);
+      if (!this.toolDown) return;
+      this.toolDown = false;
+      this.tool.pointerUp(this.toolPointer(e), this.toolCtx);
     };
     const wheel = (e: WheelEvent) => {
       e.preventDefault();
@@ -291,12 +450,17 @@ export class ViewportController {
     const blur = () => {
       this.keys.clear();
       this.cam.cancel();
+      if (this.toolDown) {
+        this.toolDown = false;
+        this.tool.deactivate?.(this.toolCtx);
+      }
     };
     const enter = () => {
       this.pointerInside = true;
     };
     const leave = () => {
       this.pointerInside = false;
+      if (!this.toolDown) this.clearHover();
     };
     const menu = (e: Event) => e.preventDefault();
     canvas.addEventListener('pointerdown', down);
@@ -360,6 +524,8 @@ export class ViewportController {
     const aspect = w / Math.max(1, h);
     this.lastStats = this.tiles.draw(this.camera, aspect, FOG);
     if (this.ghostParts.length > 0) this.tiles.drawGhosts(this.camera, aspect, this.ghostParts, GHOST_ALPHA);
+    if (this.grid.length >= 6) this.lines.drawLines(this.camera, aspect, this.grid, GRID_RGBA, true);
+    if (this.cursorLines.length >= 6) this.lines.drawLines(this.camera, aspect, this.cursorLines, ACCENT, false);
     const p = this.preview;
     if (p && p.lines.length >= 6) this.lines.drawLines(this.camera, aspect, p.lines, ACCENT, false);
     if (p && p.points.length >= 3) this.lines.drawPoints(this.camera, aspect, p.points, ACCENT, 6);
@@ -380,4 +546,25 @@ export class ViewportController {
       this.requestRender();
     }
   }
+}
+
+/** Raster auf der Zeichenebene, ±24 Zellen um die Zelle unter dem Punkt, minimal zur Kamera versetzt. */
+function buildGrid(plane: DrawPlane, point: ArrayLike<number>, snap: number): Float32Array {
+  const [u, v] = worldToPlane(plane, point);
+  const cu = Math.floor(u / snap) * snap;
+  const cv = Math.floor(v / snap) * snap;
+  const n = GRID_CELLS;
+  const lift: DrawPlane = { ...plane, offset: plane.offset + plane.facing * 0.003 };
+  const out = new Float32Array((2 * n + 2) * 2 * 6);
+  let o = 0;
+  const seg = (u0: number, v0: number, u1: number, v1: number) => {
+    out.set(planeToWorld(lift, u0, v0), o);
+    out.set(planeToWorld(lift, u1, v1), o + 3);
+    o += 6;
+  };
+  for (let i = -n; i <= n + 1; i++) {
+    seg(cu + i * snap, cv - n * snap, cu + i * snap, cv + (n + 1) * snap);
+    seg(cu - n * snap, cv + i * snap, cu + (n + 1) * snap, cv + i * snap);
+  }
+  return out;
 }

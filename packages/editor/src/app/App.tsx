@@ -1,4 +1,4 @@
-import { signal, type Signal } from '@preact/signals';
+import { effect, signal, type Signal } from '@preact/signals';
 import { useEffect } from 'preact/hooks';
 import { DEFAULT_BRUSH } from '../tools/brush';
 import type { EditorState } from '../state/editorState';
@@ -53,6 +53,17 @@ export function App({ ctx }: { ctx: AppCtx }) {
   const { state } = ctx;
   const session = ctx.session.value;
   const mode = state.mode.value;
+
+  // Editor-Einstellungen im Projekt mitführen (werden mit dem nächsten Speichern geschrieben)
+  useEffect(() => {
+    if (!session) return;
+    return effect(() => {
+      const e = session.project.editor;
+      e.snap = state.snap.value;
+      e.drawPlane = state.drawPlane.value;
+      e.activeLayer = state.activeLayer.value;
+    });
+  }, [session]);
 
   useEffect(() => {
     if (!session) return;

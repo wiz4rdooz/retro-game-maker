@@ -717,3 +717,67 @@ kbd {
   color: var(--text);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
 }
+
+/* Pinsel */
+.brush-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.brush-preview {
+  width: 48px;
+  height: 48px;
+  flex: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  image-rendering: pixelated;
+}
+.brush-preview.checker {
+  background: repeating-conic-gradient(#5a5f6a 0 25%, #3d414a 0 50%) 0 0 / 24px 24px;
+}
+.brush-name {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.btn-row {
+  display: flex;
+  gap: 8px;
+}
+.btn.grow {
+  flex: 1 1 0;
+  justify-content: center;
+}
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+}
+.check input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+.plane-switch {
+  width: 100%;
+}
+.plane-switch button {
+  flex: 1 1 0;
+  padding: 0 6px;
+  font-family: var(--font);
+}
+.status-btn {
+  padding: 0 6px;
+  height: 22px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+.status-btn:hover {
+  background: var(--surface);
+  color: var(--text);
+}

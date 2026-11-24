@@ -1,5 +1,9 @@
 import { t } from '../strings/de';
 import { IconBucket, IconCube, IconCursor, IconEraser, IconPencil, IconPipette, type IconComponent } from '../ui/icons';
+import { EraseTool } from './eraseTool';
+import { EyedropperTool } from './eyedropperTool';
+import { PaintTool } from './paintTool';
+import type { Tool, ToolContext, ToolPointer } from './tool';
 
 export type ToolId = 'paint' | 'block' | 'select' | 'fill' | 'eyedropper' | 'erase';
 
@@ -35,4 +39,31 @@ export function toolForKey(key: string): ToolId | null {
   const k = key.toLowerCase();
   for (const tool of TOOLS) if (tool.key === k) return tool.id;
   return null;
+}
+
+/** Platzhalter für Werkzeuge, die noch folgen (Block, Auswählen, Füllen). */
+class PendingTool implements Tool {
+  constructor(readonly id: ToolId) {}
+  pointerDown(_p: ToolPointer, c: ToolContext): void {
+    c.notify(t.status.folgt);
+  }
+  pointerMove(): void {}
+  pointerUp(): void {}
+  key(): boolean {
+    return false;
+  }
+}
+
+/** Neues Werkzeug-Objekt zur id. */
+export function createTool(id: ToolId): Tool {
+  switch (id) {
+    case 'paint':
+      return new PaintTool();
+    case 'eyedropper':
+      return new EyedropperTool();
+    case 'erase':
+      return new EraseTool();
+    default:
+      return new PendingTool(id);
+  }
 }
