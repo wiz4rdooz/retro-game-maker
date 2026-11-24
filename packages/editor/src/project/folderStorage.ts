@@ -11,6 +11,13 @@ export class FolderStorage implements ProjectStorage {
 
   constructor(private readonly dir: FileSystemDirectoryHandle) {}
 
+  /** Fragt erneut nach Schreibzugriff, falls er entzogen wurde (braucht eine Nutzer-Geste); true = erteilt. */
+  async ensureWriteAccess(): Promise<boolean> {
+    const state = (await this.dir.queryPermission?.({ mode: 'readwrite' })) ?? 'granted';
+    if (state === 'granted') return true;
+    return (await this.dir.requestPermission?.({ mode: 'readwrite' })) === 'granted';
+  }
+
   async readText(path: string): Promise<string | null> {
     const b = await this.readBytes(path);
     return b ? decodeText(b) : null;

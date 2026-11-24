@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { leaveSession, type AppCtx } from '../app/App';
 import type { EditorSession } from '../app/session';
-import { exportZip } from '../project/zip';
 import { t } from '../strings/de';
+import { ConfirmDialog } from './Dialogs';
 import { IconCube, IconMenu, IconPlay, IconRedo, IconUndo } from './icons';
 import { SettingsDialog } from './SettingsDialog';
 import { showToast } from './Toast';
@@ -28,6 +28,7 @@ export function TopBar({ ctx, session }: { ctx: AppCtx; session: EditorSession }
   const name = session.project.name || t.programm;
   const [menu, setMenu] = useState(false);
   const [settings, setSettings] = useState(false);
+  const [closeBlocked, setCloseBlocked] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -46,18 +47,24 @@ export function TopBar({ ctx, session }: { ctx: AppCtx; session: EditorSession }
     buttonRef.current?.focus();
   };
   const items: [string, string | null, () => void | Promise<void>][] = [
-    [t.menue.speichern, 'Strg+S', () => void session.autosave.flush()],
+    [t.menue.speichern, 'Strg+S', () => void session.save()],
     [
       t.menue.zip,
       null,
       async () => {
-        await session.autosave.flush();
-        download(await exportZip(session.io.storage), `${fileSafe(name)}.zip`);
+        // aus dem Arbeitsspeicher – vollständig auch dann, wenn Speichern gerade scheitert
+        download(await session.exportZip(), `${fileSafe(name)}.zip`);
         showToast(t.menue.exportiert(fileSafe(name)), 4000);
       },
     ],
     [t.menue.einstellungen, null, () => setSettings(true)],
-    [t.menue.schliessen, null, () => leaveSession(ctx)],
+    [
+      t.menue.schliessen,
+      null,
+      async () => {
+        if (!(await leaveSession(ctx))) setCloseBlocked(true);
+      },
+    ],
   ];
 
   return (
@@ -169,6 +176,18 @@ export function TopBar({ ctx, session }: { ctx: AppCtx; session: EditorSession }
         </button>
       </div>
       {settings && <SettingsDialog onClose={() => setSettings(false)} />}
+      {closeBlocked && (
+        <ConfirmDialog
+          title={t.menue.nichtGespeichert}
+          message={t.menue.schliessenFrage}
+          confirmLabel={t.menue.ohneSpeichern}
+          onCancel={() => setCloseBlocked(false)}
+          onConfirm={() => {
+            setCloseBlocked(false);
+            void leaveSession(ctx, true);
+          }}
+        />
+      )}
     </header>
   );
 }

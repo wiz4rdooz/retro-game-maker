@@ -25,7 +25,7 @@ export class Autosave {
   private readonly pendingFiles = new Map<string, Uint8Array>();
   private dirty = false;
   private saving = false;
-  private failed = false;
+  private lastFailed = false;
   private disposed = false;
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
   private maxTimer: ReturnType<typeof setTimeout> | null = null;
@@ -36,6 +36,11 @@ export class Autosave {
     this.maxIntervalMs = o.maxIntervalMs ?? 30000;
   }
 
+  /** true, wenn der letzte Speichervorgang gescheitert ist (bis zum nächsten Erfolg). */
+  get failed(): boolean {
+    return this.lastFailed;
+  }
+
   /** true, solange etwas ungespeichert ist oder gerade gespeichert wird. */
   get pending(): boolean {
     return this.dirty || this.saving || this.pendingChunks.size > 0 || this.pendingFiles.size > 0;
@@ -44,7 +49,7 @@ export class Autosave {
   markDirty(): void {
     if (this.disposed) return;
     this.dirty = true;
-    if (!this.saving && !this.failed) this.o.onStatus('ungespeichert');
+    if (!this.saving && !this.lastFailed) this.o.onStatus('ungespeichert');
     this.schedule(this.debounceMs);
   }
 
@@ -92,8 +97,8 @@ export class Autosave {
     const { project, world } = this.o.getDoc();
     for (const k of world.takeSaveDirty()) this.pendingChunks.add(k);
     if (!this.dirty && this.pendingChunks.size === 0 && this.pendingFiles.size === 0) {
-      if (!this.failed) this.o.onStatus('gespeichert');
-      return !this.failed;
+      if (!this.lastFailed) this.o.onStatus('gespeichert');
+      return !this.lastFailed;
     }
     const chunks = new Set(this.pendingChunks);
     const files = new Map(this.pendingFiles);
@@ -105,12 +110,12 @@ export class Autosave {
     try {
       await this.o.io.saveChanges(project, world, chunks, files);
       this.saving = false;
-      this.failed = false;
+      this.lastFailed = false;
       this.o.onStatus(this.dirty || this.pendingFiles.size > 0 ? 'ungespeichert' : 'gespeichert');
       return true;
     } catch (e) {
       this.saving = false;
-      this.failed = true;
+      this.lastFailed = true;
       this.dirty = true;
       for (const k of chunks) this.pendingChunks.add(k);
       for (const [p, b] of files) if (!this.pendingFiles.has(p)) this.pendingFiles.set(p, b);

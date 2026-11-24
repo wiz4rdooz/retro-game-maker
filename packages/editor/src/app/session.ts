@@ -9,6 +9,7 @@ import { ProjectIO } from '../project/projectIO';
 import { newProject, type ProjectFile } from '../project/projectModel';
 import { upsertRecent, type RecentEntry } from '../project/recentProjects';
 import type { ProjectStorage } from '../project/storage';
+import { exportDocumentZip } from '../project/zip';
 import { t } from '../strings/de';
 import { newId } from './ids';
 
@@ -35,6 +36,8 @@ export class EditorSession {
     readonly world: World,
     readonly tilesetImages: Map<number, ImageBitmap>,
     readonly warnings: string[],
+    /** Projektdateien außerhalb der Welt (Tileset-PNGs) im Arbeitsspeicher – für den ZIP-Export ohne Speicher. */
+    readonly projectFiles: Map<string, Uint8Array> = new Map(),
   ) {
     this.io = new ProjectIO(storage, t.fehler);
     const doc: DocCtx = { world, project };
@@ -105,8 +108,11 @@ export class EditorSession {
     }
     const loaded = await new ProjectIO(storage, t.fehler).load();
     const images = new Map<number, ImageBitmap>();
+    const files = new Map<string, Uint8Array>();
     const warnings = [...loaded.warnings];
     for (const [id, bytes] of loaded.tilesetBytes) {
+      const file = loaded.project.tilesets.find((ts) => ts.id === id)?.file;
+      if (file) files.set(file, bytes);
       try {
         images.set(id, await createImageBitmap(new Blob([new Uint8Array(bytes)], { type: 'image/png' })));
       } catch {
@@ -116,7 +122,25 @@ export class EditorSession {
     }
     const updated: RecentEntry = { ...entry, name: loaded.project.name || entry.name, lastOpened: Date.now() };
     await upsertRecent(updated);
-    return new EditorSession(updated, storage, loaded.project, loaded.world, images, warnings);
+    return new EditorSession(updated, storage, loaded.project, loaded.world, images, warnings, files);
+  }
+
+  /** Neue Projektdatei (z. B. Tileset-PNG): fürs nächste Speichern vormerken und im Arbeitsspeicher halten. */
+  addProjectFile(path: string, bytes: Uint8Array): void {
+    this.projectFiles.set(path, bytes);
+    this.autosave.addFile(path, bytes);
+  }
+
+  /** Speichern per Hand; nach einem Fehler wird vorher erneut nach Schreibzugriff gefragt (Ordner). */
+  async save(): Promise<boolean> {
+    const st = this.io.storage as Partial<{ ensureWriteAccess(): Promise<boolean> }>;
+    if (this.autosave.failed && st.ensureWriteAccess) await st.ensureWriteAccess().catch(() => false);
+    return this.autosave.flush();
+  }
+
+  /** Projekt als ZIP – aus dem Arbeitsspeicher, also auch dann vollständig, wenn Speichern scheitert. */
+  exportZip(): Promise<Uint8Array> {
+    return exportDocumentZip(this.io.storage, this.project, this.world, this.projectFiles);
   }
 
   exec(cmd: Command<DocCtx>): void {
@@ -131,13 +155,18 @@ export class EditorSession {
     return this.history.redo();
   }
 
-  /** Speichert ausstehende Änderungen und gibt die Bilder frei. */
-  async close(): Promise<void> {
-    if (this.closed) return;
+  /**
+   * Speichert ausstehende Änderungen und gibt die Bilder frei. Scheitert das Speichern, bleibt die
+   * Sitzung offen und das Ergebnis ist false – außer mit force (Änderungen seit dem letzten Speichern gehen verloren).
+   */
+  async close(force = false): Promise<boolean> {
+    if (this.closed) return true;
+    const saved = await this.autosave.flush();
+    if (!saved && !force) return false;
     this.closed = true;
-    await this.autosave.flush();
     this.autosave.dispose();
     for (const img of this.tilesetImages.values()) img.close();
     this.tilesetImages.clear();
+    return true;
   }
 }

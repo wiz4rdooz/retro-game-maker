@@ -119,6 +119,10 @@ export const t = {
     einstellungen: 'Einstellungen …',
     schliessen: 'Projekt schließen',
     exportiert: (name: string) => `Export „${name}.zip“ gestartet.`,
+    nichtGespeichert: 'Nicht gespeichert',
+    schliessenFrage:
+      'Die letzten Änderungen konnten nicht gespeichert werden und gehen beim Schließen verloren. Sichere das Projekt vorher mit „Als ZIP exportieren“.',
+    ohneSpeichern: 'Ohne Speichern schließen',
   },
   einstellungen: {
     titel: 'Einstellungen',

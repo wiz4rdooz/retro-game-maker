@@ -12,6 +12,7 @@ import { StatusBar } from '../ui/StatusBar';
 import { Toast, showToast } from '../ui/Toast';
 import { ToolRail } from '../ui/ToolRail';
 import { TopBar } from '../ui/TopBar';
+import { t } from '../strings/de';
 import type { EditorSession } from './session';
 
 /** Gemeinsamer Zustand der Oberfläche. */
@@ -30,12 +31,20 @@ export function createAppCtx(state: EditorState): AppCtx {
 export function enterSession(ctx: AppCtx, session: EditorSession): void {
   const { state } = ctx;
   const prefs = session.project.editor;
+  let failing = false;
   session.hooks = {
     onDocChange: () => {
       state.docVersion.value++;
     },
-    onSaveStatus: (s) => {
+    onSaveStatus: (s, error) => {
       state.saveStatus.value = s;
+      // Ein Fehler wird einmal gemeldet (mit Grund), erst nach einem Erfolg wieder
+      if (s === 'fehler') {
+        if (!failing) showToast(error ? `${t.fehler.speichernFehlgeschlagen} (${error})` : t.fehler.speichernFehlgeschlagen, 10_000);
+        failing = true;
+      } else if (s !== 'speichert') {
+        failing = false;
+      }
     },
   };
   const layers = session.world.layers;
@@ -54,18 +63,22 @@ export function enterSession(ctx: AppCtx, session: EditorSession): void {
   state.mode.value = 'edit';
 }
 
-/** Speichert, schließt die Sitzung und kehrt zum Startbildschirm zurück. */
-export async function leaveSession(ctx: AppCtx): Promise<void> {
+/**
+ * Speichert, schließt die Sitzung und kehrt zum Startbildschirm zurück. Scheitert das Speichern,
+ * bleibt alles offen und das Ergebnis ist false (mit force wird trotzdem geschlossen).
+ */
+export async function leaveSession(ctx: AppCtx, force = false): Promise<boolean> {
   const session = ctx.session.value;
-  if (!session) return;
+  if (!session) return true;
   ctx.play.current?.stop();
-  await session.close();
+  if (!(await session.close(force))) return false;
   const { state } = ctx;
   state.mode.value = 'start';
   state.hover.value = null;
   state.status.value = null;
   state.selection.value = { mode: 'tiles', ids: new Set() };
   ctx.session.value = null;
+  return true;
 }
 
 export function App({ ctx }: { ctx: AppCtx }) {
@@ -93,7 +106,7 @@ export function App({ ctx }: { ctx: AppCtx }) {
       },
       onUndo: () => editing() && session.undo(),
       onRedo: () => editing() && session.redo(),
-      onSave: () => editing() && void session.autosave.flush(),
+      onSave: () => editing() && void session.save(),
       onPlay: () => ctx.play.current?.toggle(),
       onKey: (e) => {
         const play = ctx.play.current;

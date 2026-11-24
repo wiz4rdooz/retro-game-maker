@@ -59,7 +59,7 @@ export async function importTilesetFile(
     rows: check.rows,
   };
   session.tilesetImages.set(meta.id, image);
-  session.autosave.addFile(meta.file, bytes);
+  session.addProjectFile(meta.file, bytes);
   session.exec(addTilesetCmd(meta));
   if (state) state.brush.value = { ...state.brush.value, tileset: meta.id, tx: 0, ty: 0, w: 1, h: 1, topTile: null };
   return meta;

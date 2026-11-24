@@ -103,7 +103,7 @@ export function StartScreen({ ctx }: { ctx: AppCtx }) {
       session.project.tilesets.push(meta);
       session.project.nextTilesetId = meta.id + 1;
       session.tilesetImages.set(meta.id, image);
-      session.autosave.addFile(meta.file, ts.bytes);
+      session.addProjectFile(meta.file, ts.bytes);
       generateTestIsland(session.world, { layer: session.world.layers[0].id, tileset: meta.id, columns: meta.columns, rows: meta.rows });
       session.project.editor.camera = { x: 250, y: 30, z: 250, yaw: 0, pitch: (-20 * Math.PI) / 180 };
       session.autosave.markDirty();
