@@ -50,6 +50,7 @@ export function installTestHooks(ctx: AppCtx): void {
         docVersion: state.docVersion.value,
         statsVisible: state.statsVisible.value,
         project: s?.project.name ?? null,
+        camera: s?.project.editor.camera ?? null,
         tiles: s?.world.tileCount() ?? 0,
         layers: s?.world.layers ?? [],
         canUndo: s?.history.canUndo ?? false,

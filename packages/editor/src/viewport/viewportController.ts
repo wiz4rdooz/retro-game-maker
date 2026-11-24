@@ -7,6 +7,8 @@ import {
   TileRenderer,
   buildChunkMesh,
   createGl,
+  raycastWorld,
+  vec3,
   type ChunkMeshPart,
   type FogOptions,
   type RenderStats,
@@ -16,6 +18,8 @@ import {
 } from '@rgm/engine';
 import type { EditorSession } from '../app/session';
 import type { EditorState } from '../state/editorState';
+import { isTypingTarget } from './keyboard';
+import { CameraController } from './cameraController';
 
 /** Vorschau der Werkzeuge: halbdurchsichtige Kacheln, Linien (je 6 Zahlen) und Punkte (je 3). */
 export interface Preview {
@@ -53,7 +57,14 @@ export class ViewportController {
   private ghostParts: ChunkMeshPart[] = [];
   private lastStats: RenderStats = { drawCalls: 0, visibleChunks: 0, triangles: 0 };
   private raf = 0;
+  private lastFrame = 0;
   private disposed = false;
+  readonly cam: CameraController;
+  /** Gedrückte Tasten (Kleinbuchstaben, ' ', 'shift') für Fliegen und Verschieben. */
+  private readonly keys = new Set<string>();
+  private pointerInside = false;
+  private readonly rayO = vec3.create();
+  private readonly rayD = vec3.create();
   private readonly cleanups: (() => void)[] = [];
 
   constructor(
@@ -75,6 +86,7 @@ export class ViewportController {
     this.camera.yaw = c.yaw;
     this.camera.pitch = c.pitch;
     this.camera.view = state.view.value;
+    this.cam = new CameraController(this.camera, () => this.cameraChanged());
 
     this.syncTilesets();
     session.world.markAllRenderDirty();
@@ -92,10 +104,11 @@ export class ViewportController {
         this.requestRender();
       }),
       effect(() => {
-        this.camera.view = state.view.value;
+        this.cam.setView(state.view.value);
         this.requestRender();
       }),
     );
+    this.installInput();
 
     const lost = (e: Event) => {
       e.preventDefault();
@@ -143,12 +156,15 @@ export class ViewportController {
 
   requestRender(): void {
     if (this.disposed || this.raf !== 0) return;
-    this.raf = requestAnimationFrame(() => {
+    this.raf = requestAnimationFrame((now) => {
       this.raf = 0;
       if (this.disposed || this.gl.isContextLost()) return;
+      const dt = Math.min(0.1, Math.max(0, (now - this.lastFrame) / 1000));
+      this.lastFrame = now;
+      const flying = this.cam.update(dt, this.keys);
       const more = this.remesh(MESH_BUDGET_MS);
       this.draw();
-      if (more) this.requestRender();
+      if (more || flying) this.requestRender();
     });
   }
 
@@ -188,6 +204,125 @@ export class ViewportController {
     cancelAnimationFrame(this.raf);
     for (const fn of this.cleanups) fn();
     this.gl.getExtension('WEBGL_lose_context')?.loseContext();
+  }
+
+  /**
+   * Tasten für die Ansicht (von der Editor-Tastatur gefragt): beim Umsehen gehören W/A/S/D/Q/E und
+   * Shift der Kamera, die Leertaste über der Ansicht dem Verschieben, F rückt an den Punkt unter dem Zeiger.
+   */
+  handleKey(e: KeyboardEvent): boolean {
+    const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    if (this.cam.looking && (CameraController.isFlyKey(k) || k === 'Shift')) return true;
+    if (k === ' ' && (this.pointerInside || this.cam.panning)) return true;
+    if (k === 'f' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      const hover = this.state.hover.value;
+      const b = this.session.world.bounds();
+      const target = hover ? hover.point : b ? [(b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2, (b.min[2] + b.max[2]) / 2] : null;
+      if (target) this.cam.focus(target);
+      return true;
+    }
+    return false;
+  }
+
+  /** Erster Treffer unter dem Zeiger (CSS-Pixel) auf sichtbaren Ebenen. */
+  pick(cssX: number, cssY: number) {
+    const w = Math.max(1, this.canvas.clientWidth);
+    const h = Math.max(1, this.canvas.clientHeight);
+    this.camera.screenRay((cssX / w) * 2 - 1, 1 - (cssY / h) * 2, w / h, this.rayO, this.rayD);
+    const hidden = new Set(this.session.world.layers.filter((l) => !l.visible).map((l) => l.id));
+    return raycastWorld(this.session.world, this.rayO, this.rayD, 2000, (id) => !hidden.has(id));
+  }
+
+  private cameraChanged(): void {
+    const ec = this.session.project.editor.camera;
+    ec.x = this.camera.position[0];
+    ec.y = this.camera.position[1];
+    ec.z = this.camera.position[2];
+    ec.yaw = this.camera.yaw;
+    ec.pitch = this.camera.pitch;
+    this.requestRender();
+  }
+
+  private installInput(): void {
+    const canvas = this.canvas;
+    canvas.tabIndex = -1;
+    const down = (e: PointerEvent) => {
+      if (this.cam.looking || this.cam.panning) return;
+      const panLike = e.button === 1 || e.button === 2 || (e.button === 0 && this.keys.has(' '));
+      if (panLike && this.camera.view === 'perspective') {
+        const hit = this.pick(e.offsetX, e.offsetY);
+        if (hit) this.cam.focusDistance = Math.max(0.5, hit.t);
+      }
+      if (this.cam.pointerDown(e.button, e.offsetX, e.offsetY, this.keys.has(' '))) {
+        e.preventDefault();
+        canvas.focus({ preventScroll: true });
+        canvas.setPointerCapture(e.pointerId);
+        this.lastFrame = performance.now();
+      }
+    };
+    const move = (e: PointerEvent) => {
+      this.cam.pointerMove(e.offsetX, e.offsetY);
+    };
+    const up = (e: PointerEvent) => {
+      this.cam.pointerUp(e.button);
+    };
+    const wheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const scale = e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? Math.max(1, canvas.clientHeight) : 1;
+      const hit = this.camera.view === 'perspective' ? this.pick(e.offsetX, e.offsetY) : null;
+      this.cam.wheel(e.deltaY * scale, hit ? hit.t : null);
+    };
+    const keyName = (e: KeyboardEvent) => (e.key === 'Shift' ? 'shift' : e.key.length === 1 ? e.key.toLowerCase() : '');
+    const keyDown = (e: KeyboardEvent) => {
+      if (isTypingTarget(e.target)) return;
+      const k = keyName(e);
+      if (!k) return;
+      if (!this.keys.has(k) && this.cam.looking && CameraController.isFlyKey(k)) {
+        this.lastFrame = performance.now();
+        this.requestRender();
+      }
+      this.keys.add(k);
+    };
+    const keyUp = (e: KeyboardEvent) => {
+      const k = keyName(e);
+      if (k === ' ' && (this.pointerInside || this.cam.panning) && !isTypingTarget(e.target)) e.preventDefault();
+      if (k) this.keys.delete(k);
+    };
+    const blur = () => {
+      this.keys.clear();
+      this.cam.cancel();
+    };
+    const enter = () => {
+      this.pointerInside = true;
+    };
+    const leave = () => {
+      this.pointerInside = false;
+    };
+    const menu = (e: Event) => e.preventDefault();
+    canvas.addEventListener('pointerdown', down);
+    canvas.addEventListener('pointermove', move);
+    canvas.addEventListener('pointerup', up);
+    canvas.addEventListener('pointercancel', blur);
+    canvas.addEventListener('pointerenter', enter);
+    canvas.addEventListener('pointerleave', leave);
+    canvas.addEventListener('wheel', wheel, { passive: false });
+    canvas.addEventListener('contextmenu', menu);
+    window.addEventListener('keydown', keyDown);
+    window.addEventListener('keyup', keyUp);
+    window.addEventListener('blur', blur);
+    this.cleanups.push(() => {
+      canvas.removeEventListener('pointerdown', down);
+      canvas.removeEventListener('pointermove', move);
+      canvas.removeEventListener('pointerup', up);
+      canvas.removeEventListener('pointercancel', blur);
+      canvas.removeEventListener('pointerenter', enter);
+      canvas.removeEventListener('pointerleave', leave);
+      canvas.removeEventListener('wheel', wheel);
+      canvas.removeEventListener('contextmenu', menu);
+      window.removeEventListener('keydown', keyDown);
+      window.removeEventListener('keyup', keyUp);
+      window.removeEventListener('blur', blur);
+    });
   }
 
   /** Vernetzt Chunks aus der Warteschlange, bis das Zeitbudget aufgebraucht ist; true = Rest bleibt. */
@@ -238,6 +373,7 @@ export class ViewportController {
     const dpr = Math.min(globalThis.devicePixelRatio || 1, 2);
     const w = Math.max(1, Math.round(this.canvas.clientWidth * dpr));
     const h = Math.max(1, Math.round(this.canvas.clientHeight * dpr));
+    this.cam.viewportHeight = this.canvas.clientHeight;
     if (this.canvas.width !== w || this.canvas.height !== h) {
       this.canvas.width = w;
       this.canvas.height = h;

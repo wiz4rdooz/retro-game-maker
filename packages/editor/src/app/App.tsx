@@ -66,7 +66,7 @@ export function App({ ctx }: { ctx: AppCtx }) {
       onPlay: () => {
         /* Play-Modus folgt in Task 17 */
       },
-      onKey: () => false,
+      onKey: (e) => ctx.viewport.current?.handleKey(e) ?? false,
     });
   }, [session]);
 
