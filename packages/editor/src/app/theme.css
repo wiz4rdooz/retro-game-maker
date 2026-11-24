@@ -1010,3 +1010,20 @@ kbd {
 .viewport.playing .viewport-canvas {
   cursor: none;
 }
+
+/* Aufbau-Fortschritt */
+.build-progress {
+  position: absolute;
+  left: 50%;
+  top: 16px;
+  z-index: 2;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(23, 24, 27, 0.92);
+  color: var(--text-2);
+  font: 12px var(--mono);
+  zoom: var(--ui-scale, 1);
+}

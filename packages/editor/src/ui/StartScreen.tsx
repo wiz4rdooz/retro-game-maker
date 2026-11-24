@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { enterSession, type AppCtx } from '../app/App';
 import { EditorSession } from '../app/session';
+import { generateTestIsland } from '@rgm/engine';
 import { IdbStorage } from '../project/idbStorage';
+import type { TilesetMeta } from '../project/projectModel';
+import { makeTestTileset } from '../project/testTileset';
 import { PROJECT_FILE } from '../project/projectIO';
 import { listRecent, removeRecent, type RecentEntry } from '../project/recentProjects';
 import { importZip } from '../project/zip';
@@ -78,6 +81,33 @@ export function StartScreen({ ctx }: { ctx: AppCtx }) {
       }
     });
 
+  /** Browser-Projekt „Test-Insel“: Test-Tileset, ~300.000 Kacheln, Kamera über der Mitte. */
+  const testIsland = () =>
+    run(async () => {
+      const session = await EditorSession.create(t.start.testInselName, 'indexeddb');
+      const ts = await makeTestTileset();
+      const image = await createImageBitmap(new Blob([new Uint8Array(ts.bytes)], { type: 'image/png' }));
+      const meta: TilesetMeta = {
+        id: session.project.nextTilesetId,
+        name: 'test-insel',
+        file: 'tilesets/test-insel.png',
+        tileSize: ts.tileSize,
+        imageWidth: ts.width,
+        imageHeight: ts.height,
+        columns: ts.width / ts.tileSize,
+        rows: ts.height / ts.tileSize,
+      };
+      // Startinhalt, kein Rückgängig-Schritt
+      session.project.tilesets.push(meta);
+      session.project.nextTilesetId = meta.id + 1;
+      session.tilesetImages.set(meta.id, image);
+      session.autosave.addFile(meta.file, ts.bytes);
+      generateTestIsland(session.world, { layer: session.world.layers[0].id, tileset: meta.id, columns: meta.columns, rows: meta.rows });
+      session.project.editor.camera = { x: 250, y: 30, z: 250, yaw: 0, pitch: (-20 * Math.PI) / 180 };
+      session.autosave.markDirty();
+      return session;
+    });
+
   return (
     <div class="start">
       <div class="start-card">
@@ -104,6 +134,9 @@ export function StartScreen({ ctx }: { ctx: AppCtx }) {
           <button type="button" class="btn" disabled={busy} onClick={() => zipInput.current?.click()}>
             <IconUpload />
             {t.start.zipImportieren}
+          </button>
+          <button type="button" class="btn" disabled={busy} onClick={testIsland}>
+            {t.start.testInsel}
           </button>
           <input
             ref={zipInput}

@@ -44,3 +44,4 @@ export {
   type TileChange,
 } from './geometry/transform';
 export { extrudeTiles } from './geometry/extrude';
+export { generateTestIsland, mulberry32, type TestIslandOptions } from './world/testIsland';

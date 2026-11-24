@@ -152,6 +152,9 @@ export const t = {
     nurEcken: 'Zusammenführen geht im Ecken-Modus (Taste 1).',
     verschieben: 'Verschieben',
   },
+  welt: {
+    aufbau: (prozent: number) => `Welt wird aufgebaut … ${prozent} %`,
+  },
   play: {
     hinweisLock: 'Esc: zurück zum Editor',
     hinweisZiehen: 'Linke Maustaste halten zum Umsehen · Esc: zurück zum Editor',
@@ -205,6 +208,8 @@ export const t = {
     keinProjekt: 'In diesem Ordner liegt kein Projekt (projekt.json fehlt).',
     keinZugriff: 'Ohne Schreibzugriff auf den Ordner kann das Projekt nicht geöffnet werden.',
     zipFehler: 'Diese ZIP-Datei enthält kein lesbares Projekt.',
+    testInsel: 'Test-Insel (Leistungstest)',
+    testInselName: 'Test-Insel',
   },
   dialog: {
     neuesProjekt: 'Neues Projekt',

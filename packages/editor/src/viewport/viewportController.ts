@@ -60,6 +60,9 @@ const SEL_DRAW_MAX = 20_000;
  */
 export class ViewportController {
   readonly camera = new Camera();
+  /** Fortschritt beim Aufbau vieler Chunks (0–100), sonst null. */
+  readonly meshProgress = signal<number | null>(null);
+  private meshBatch = 0;
   /** Ändert sich, wenn sich Blickrichtung oder Ansicht ändern (für die Achsen-Anzeige). */
   readonly cameraInfo = signal<{ yaw: number; pitch: number; view: ViewKind }>({ yaw: 0, pitch: 0, view: 'perspective' });
 
@@ -639,7 +642,16 @@ export class ViewportController {
       const recent = [...fresh].reverse();
       this.queue = [...recent, ...this.queue.filter((k) => !fresh.has(k))];
     }
-    if (this.queue.length === 0) return false;
+    if (this.queue.length === 0) {
+      if (this.meshBatch > 0) {
+        this.meshBatch = 0;
+        this.meshProgress.value = null;
+      }
+      return false;
+    }
+    // Große Aufbauten (z. B. beim Laden) zeigen einen Fortschritt
+    if (this.meshBatch === 0 && this.queue.length > 32) this.meshBatch = this.queue.length;
+    else if (this.meshBatch > 0 && this.queue.length > this.meshBatch) this.meshBatch = this.queue.length;
     const hidden = new Set(world.layers.filter((l) => !l.visible).map((l) => l.id));
     const visible = (id: number) => !hidden.has(id);
     const t0 = performance.now();
@@ -652,6 +664,14 @@ export class ViewportController {
       if (performance.now() - t0 >= budgetMs) break;
     }
     this.queue = this.queue.slice(i);
+    if (this.meshBatch > 0) {
+      if (this.queue.length === 0) {
+        this.meshBatch = 0;
+        this.meshProgress.value = null;
+      } else {
+        this.meshProgress.value = Math.floor((100 * (this.meshBatch - this.queue.length)) / this.meshBatch);
+      }
+    }
     return this.queue.length > 0;
   }
 

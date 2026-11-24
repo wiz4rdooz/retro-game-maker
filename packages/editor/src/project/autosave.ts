@@ -36,6 +36,11 @@ export class Autosave {
     this.maxIntervalMs = o.maxIntervalMs ?? 30000;
   }
 
+  /** true, solange etwas ungespeichert ist oder gerade gespeichert wird. */
+  get pending(): boolean {
+    return this.dirty || this.saving || this.pendingChunks.size > 0 || this.pendingFiles.size > 0;
+  }
+
   markDirty(): void {
     if (this.disposed) return;
     this.dirty = true;

@@ -42,10 +42,12 @@ export function enterSession(ctx: AppCtx, session: EditorSession): void {
   state.activeLayer.value = layers.some((l) => l.id === prefs.activeLayer) ? prefs.activeLayer : (layers[0]?.id ?? 1);
   state.snap.value = prefs.snap;
   state.drawPlane.value = prefs.drawPlane;
-  state.brush.value = { ...DEFAULT_BRUSH };
+  // mit vorhandenem Tileset gleich dessen erste Kachel im Pinsel
+  const firstTileset = session.project.tilesets.find((ts) => session.tilesetImages.has(ts.id));
+  state.brush.value = { ...DEFAULT_BRUSH, tileset: firstTileset ? firstTileset.id : DEFAULT_BRUSH.tileset };
   state.tool.value = 'paint';
   state.hover.value = null;
-  state.saveStatus.value = 'gespeichert';
+  state.saveStatus.value = session.autosave.pending ? 'ungespeichert' : 'gespeichert';
   state.status.value = session.warnings.length > 0 ? session.warnings.join(' · ') : null;
   ctx.session.value = session;
   state.mode.value = 'edit';

@@ -53,6 +53,11 @@ export function Viewport({ ctx, session }: { ctx: AppCtx; session: EditorSession
         <canvas ref={canvasRef} class="viewport-canvas" />
       )}
       {playing && ctx.play.current && <PlayOverlay play={ctx.play.current} />}
+      {ctrl && ctrl.meshProgress.value !== null && (
+        <p class="build-progress" role="status">
+          {t.welt.aufbau(ctrl.meshProgress.value)}
+        </p>
+      )}
       {!playing && (
       <div role="group" aria-label={t.ansicht.label} class="seg view-switch">
         {VIEWS.map((v) => (
