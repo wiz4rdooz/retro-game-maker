@@ -73,6 +73,30 @@ export const t = {
     raster: (s: string) => `Raster ${s}`,
     pinsel: (name: string) => `Pinsel ${name}`,
   },
+  tileset: {
+    keinBild: 'Das ist kein Bild, das ich lesen kann. Bitte wähle eine PNG-Datei.',
+    zuGross: (max: number) => `Das Bild ist zu groß (höchstens ${max} px Breite und Höhe).`,
+    zuKlein: 'Das Bild ist kleiner als eine Kachel.',
+    randIgnoriert: (x: number, y: number) =>
+      `Der Rand passt nicht ins Raster und wird ignoriert: ${x} px rechts, ${y} px unten.`,
+    kachelgroesseUngueltig: 'Die Kachelgröße muss zwischen 4 und 256 px liegen.',
+    leer: 'Noch kein Tileset. Ziehe ein PNG hierher oder klicke auf „Tileset laden“.',
+    laden: 'Tileset laden',
+    waehlen: 'Tileset wählen',
+    bild: (name: string) => `Tileset ${name}`,
+    kachelgroesse: 'Kachelgröße',
+    eigene: 'Eigene',
+    eigeneGroesse: 'Eigene Kachelgröße in Pixeln',
+    inBenutzung: 'Dieses Tileset ist schon bemalt – die Größe gilt für das nächste Tileset.',
+    groesse: (ts: number) => `${ts} × ${ts}`,
+    auswahl: (tx: number, ty: number, w: number, h: number) =>
+      w === 1 && h === 1 ? `Kachel ${tx}, ${ty}` : `Kacheln ${tx}, ${ty} · ${w} × ${h}`,
+    deckel: (tx: number, ty: number) => `Deckel ${tx}, ${ty}`,
+    deckelHinweis: 'Alt + Klick setzt die Deckel-Kachel für Blöcke',
+  },
+  toast: {
+    schliessen: 'Meldung schließen',
+  },
   start: {
     untertitel: 'Baue Welten aus Kacheln und lauf gleich darin herum.',
     neuesProjekt: 'Neues Projekt',

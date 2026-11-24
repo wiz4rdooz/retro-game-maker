@@ -13,8 +13,9 @@ export async function newProject(page: Page, name = 'E2E'): Promise<void> {
   await expect(page.getByRole('navigation', { name: 'Werkbänke' })).toBeVisible();
 }
 
-/** Ruft window.__rgm[name](...args) auf und gibt das Ergebnis zurück. */
-export async function hooks<T = unknown>(page: Page, name: string, ...args: unknown[]): Promise<T> {
+/** Ruft window.__rgm[name](...args) auf und gibt das Ergebnis zurück (ohne Typangabe: any, wie in den Specs genutzt). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function hooks<T = any>(page: Page, name: string, ...args: unknown[]): Promise<T> {
   return page.evaluate(
     ([n, a]) => (window as unknown as { __rgm: Record<string, (...x: unknown[]) => unknown> }).__rgm[n](...a),
     [name, args] as [string, unknown[]],

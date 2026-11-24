@@ -1,34 +1,10 @@
-import type { ComponentChildren } from 'preact';
-import { useState } from 'preact/hooks';
 import type { AppCtx } from '../app/App';
 import type { EditorSession } from '../app/session';
 import { t } from '../strings/de';
-import { IconChevron } from './icons';
+import { PanelSection } from './PanelSection';
+import { TilesetPanel } from './TilesetPanel';
 
-/** Aufklappbarer Abschnitt der Seitenleiste; als Region mit Namen auffindbar. */
-export function PanelSection({ title, children }: { title: string; children: ComponentChildren }) {
-  const [open, setOpen] = useState(true);
-  const id = `panel-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
-  return (
-    <section class="panel-section" role="region" aria-label={title}>
-      <h2>
-        <button type="button" class="panel-header" aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)}>
-          {title}
-          <span class={open ? 'chevron' : 'chevron closed'}>
-            <IconChevron />
-          </span>
-        </button>
-      </h2>
-      {open && (
-        <div id={id} class="panel-body">
-          {children}
-        </div>
-      )}
-    </section>
-  );
-}
-
-/** Seitenleiste rechts; Tileset, Pinsel und Ebenen füllen spätere Aufgaben. */
+/** Seitenleiste rechts: Tileset, Pinsel, Ebenen. */
 export function RightPanel({ ctx, session }: { ctx: AppCtx; session: EditorSession }) {
   const { state } = ctx;
   void state.docVersion.value;
@@ -37,9 +13,7 @@ export function RightPanel({ ctx, session }: { ctx: AppCtx; session: EditorSessi
   const tileset = session.project.tilesets.find((ts) => ts.id === brush.tileset);
   return (
     <aside aria-label={t.panel.label} class="right-panel">
-      <PanelSection title={t.panel.tileset}>
-        <p class="muted">{tileset ? tileset.name : t.panel.pruefmuster}</p>
-      </PanelSection>
+      <TilesetPanel ctx={ctx} session={session} />
       <PanelSection title={t.panel.pinsel}>
         <div class="row-between">
           <span class="strong">{tileset ? tileset.name : t.panel.pruefmuster}</span>

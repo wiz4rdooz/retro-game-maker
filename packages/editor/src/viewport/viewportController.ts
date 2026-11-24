@@ -46,6 +46,8 @@ export class ViewportController {
   private readonly tiles: TileRenderer;
   private readonly lines: LineRenderer;
   private readonly tilesets = new Map<number, TilesetInfo>([[CHECKER_TILESET.id, CHECKER_TILESET]]);
+  /** Tileset-id → zuletzt übergebene Größe (Kachel/Bild). */
+  private readonly synced = new Map<number, string>();
   private queue: number[] = [];
   private preview: Preview | null = null;
   private ghostParts: ChunkMeshPart[] = [];
@@ -64,6 +66,7 @@ export class ViewportController {
     this.gl = gl;
     this.tiles = new TileRenderer(gl);
     this.lines = new LineRenderer(gl);
+    session.maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE) as number;
 
     const c = session.project.editor.camera;
     this.camera.position[0] = c.x;
@@ -85,6 +88,7 @@ export class ViewportController {
       effect(() => {
         void state.docVersion.value;
         void state.hover.value;
+        this.syncTilesets();
         this.requestRender();
       }),
       effect(() => {
@@ -101,6 +105,7 @@ export class ViewportController {
     const restored = () => {
       this.tiles.restore();
       this.lines.restore();
+      this.synced.clear();
       this.syncTilesets();
       this.queue = [];
       this.session.world.markAllRenderDirty();
@@ -116,17 +121,24 @@ export class ViewportController {
     this.requestRender();
   }
 
-  /** Lädt alle Tileset-Bilder der Sitzung in den Renderer und vernetzt die Welt neu. */
+  /** Gibt neue oder geänderte Tilesets der Sitzung an den Renderer; dann wird die Welt neu vernetzt. */
   syncTilesets(): void {
+    let changed = false;
     for (const meta of this.session.project.tilesets) {
       const img = this.session.tilesetImages.get(meta.id);
       if (!img) continue;
+      const sig = `${meta.tileSize}/${meta.imageWidth}/${meta.imageHeight}`;
+      if (this.synced.get(meta.id) === sig) continue;
       const info: TilesetInfo = { id: meta.id, tileSize: meta.tileSize, imageWidth: meta.imageWidth, imageHeight: meta.imageHeight };
       this.tiles.setTileset(meta.id, img, info);
       this.tilesets.set(meta.id, info);
+      this.synced.set(meta.id, sig);
+      changed = true;
     }
-    this.session.world.markAllRenderDirty();
-    this.requestRender();
+    if (changed) {
+      this.session.world.markAllRenderDirty();
+      this.requestRender();
+    }
   }
 
   requestRender(): void {

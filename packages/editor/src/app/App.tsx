@@ -8,6 +8,7 @@ import { Viewport } from '../viewport/Viewport';
 import { RightPanel } from '../ui/RightPanel';
 import { StartScreen } from '../ui/StartScreen';
 import { StatusBar } from '../ui/StatusBar';
+import { Toast } from '../ui/Toast';
 import { ToolRail } from '../ui/ToolRail';
 import { TopBar } from '../ui/TopBar';
 import type { EditorSession } from './session';
@@ -79,6 +80,7 @@ export function App({ ctx }: { ctx: AppCtx }) {
         <RightPanel ctx={ctx} session={session} />
       </div>
       <StatusBar ctx={ctx} session={session} />
+      <Toast />
     </div>
   );
 }

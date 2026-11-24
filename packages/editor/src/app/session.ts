@@ -22,6 +22,8 @@ export class EditorSession {
   readonly io: ProjectIO;
   /** Wird von der Oberfläche gesetzt. */
   hooks: SessionHooks = {};
+  /** Größte Texturkante; die Ansicht trägt den Wert aus WebGL ein. */
+  maxTextureSize = 4096;
   private closed = false;
 
   private constructor(

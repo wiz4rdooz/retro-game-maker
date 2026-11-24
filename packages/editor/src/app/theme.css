@@ -641,3 +641,79 @@ kbd {
   justify-content: flex-end;
   gap: 8px;
 }
+
+/* Tileset */
+.tileset-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.select {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 44px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+.size-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.seg.compact button {
+  height: 32px;
+  padding: 0 9px;
+  font: 12px var(--mono);
+}
+.field-inline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.field-inline input {
+  width: 80px;
+  height: 36px;
+  padding: 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.tileset-view {
+  max-height: 340px;
+  overflow: auto;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+}
+.tileset-view canvas {
+  display: block;
+  image-rendering: pixelated;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+/* Meldungen */
+.toast {
+  position: fixed;
+  left: 50%;
+  top: 72px;
+  z-index: 20;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(560px, calc(100% - 24px));
+  padding: 8px 8px 8px 14px;
+  border: 1px solid #5a3a3a;
+  border-radius: 10px;
+  background: #2a1d1f;
+  color: var(--text);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
