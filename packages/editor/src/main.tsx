@@ -14,5 +14,14 @@ import { applyUiScale, prefs } from './state/prefs';
 
 effect(() => applyUiScale(prefs.value.uiScale));
 const ctx = createAppCtx(createEditorState());
+// Eine Datei neben einer Ablagefläche öffnet der Browser sonst selbst – die Arbeit wäre weg.
+const swallowDrop = (e: DragEvent) => {
+  if (e.defaultPrevented) return;
+  e.preventDefault();
+  if (e.dataTransfer) e.dataTransfer.dropEffect = 'none';
+};
+window.addEventListener('dragover', swallowDrop);
+window.addEventListener('drop', swallowDrop);
+
 render(<App ctx={ctx} />, document.getElementById('app')!);
 installTestHooks(ctx);

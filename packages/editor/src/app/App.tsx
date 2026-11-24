@@ -97,6 +97,31 @@ export function App({ ctx }: { ctx: AppCtx }) {
     });
   }, [session]);
 
+  // Tab schließen/wegnavigieren: Rückfrage, solange etwas ungespeichert ist; Hintergrund → sofort speichern
+  useEffect(() => {
+    if (!session) return;
+    const beforeUnload = (e: BeforeUnloadEvent) => {
+      if (!session.autosave.pending) return;
+      void session.autosave.flush();
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    const saveNow = () => {
+      if (session.autosave.pending) void session.autosave.flush();
+    };
+    const visibility = () => {
+      if (document.visibilityState === 'hidden') saveNow();
+    };
+    window.addEventListener('beforeunload', beforeUnload);
+    window.addEventListener('pagehide', saveNow);
+    document.addEventListener('visibilitychange', visibility);
+    return () => {
+      window.removeEventListener('beforeunload', beforeUnload);
+      window.removeEventListener('pagehide', saveNow);
+      document.removeEventListener('visibilitychange', visibility);
+    };
+  }, [session]);
+
   useEffect(() => {
     if (!session) return;
     const editing = () => state.mode.value === 'edit';
