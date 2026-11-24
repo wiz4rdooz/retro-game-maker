@@ -78,6 +78,8 @@ export class ViewportController {
   private fpsStart = 0;
   private raf = 0;
   private lastFrame = 0;
+  /** Im Play-Modus: wird vor jedem Bild aufgerufen, dann wird durchgehend gezeichnet. */
+  private frameHook: ((dt: number) => void) | null = null;
   private disposed = false;
   readonly cam: CameraController;
   /** Gedrückte Tasten (Kleinbuchstaben, ' ', 'shift') für Fliegen und Verschieben. */
@@ -221,12 +223,14 @@ export class ViewportController {
       if (this.disposed || this.gl.isContextLost()) return;
       const dt = Math.min(0.1, Math.max(0, (now - this.lastFrame) / 1000));
       this.lastFrame = now;
-      const flying = this.cam.update(dt, this.keys);
+      const playing = this.frameHook !== null;
+      if (this.frameHook) this.frameHook(dt);
+      const flying = !playing && this.cam.update(dt, this.keys);
       const more = this.remesh(MESH_BUDGET_MS);
       this.draw();
       this.countFrame(now);
-      // Mit Statistik wird durchgehend gezeichnet, sonst wäre „Bilder/s“ bedeutungslos
-      if (more || flying || this.state.statsVisible.value) this.requestRender();
+      // Im Spiel und mit Statistik wird durchgehend gezeichnet, sonst wäre „Bilder/s“ bedeutungslos
+      if (more || flying || playing || this.state.statsVisible.value) this.requestRender();
     });
   }
 
@@ -268,6 +272,33 @@ export class ViewportController {
 
   stats(): RenderStats {
     return { ...this.lastStats };
+  }
+
+  /** Spielschleife an- oder abmelden (Play-Modus). */
+  setFrameHook(fn: ((dt: number) => void) | null): void {
+    this.frameHook = fn;
+    this.lastFrame = performance.now();
+    if (fn) this.setPreview(null);
+    this.requestRender();
+  }
+
+  get canvasElement(): HTMLCanvasElement {
+    return this.canvas;
+  }
+
+  /** Kamera direkt setzen (Test-Hooks) und ins Projekt spiegeln. */
+  setCameraPose(x: number, y: number, z: number, yaw: number, pitch: number): void {
+    this.camera.position[0] = x;
+    this.camera.position[1] = y;
+    this.camera.position[2] = z;
+    this.camera.yaw = yaw;
+    this.camera.pitch = pitch;
+    this.commitCamera();
+  }
+
+  /** Nach einer Kamera-Änderung von außen: ins Projekt spiegeln und neu zeichnen. */
+  commitCamera(): void {
+    this.cameraChanged();
   }
 
   /** Werte der Statistik-Anzeige (F3). */
@@ -490,8 +521,9 @@ export class ViewportController {
   private installInput(): void {
     const canvas = this.canvas;
     canvas.tabIndex = -1;
+    const playing = () => this.state.mode.value === 'play';
     const down = (e: PointerEvent) => {
-      if (this.cam.looking || this.cam.panning) return;
+      if (playing() || this.cam.looking || this.cam.panning) return;
       const panLike = e.button === 1 || e.button === 2 || (e.button === 0 && this.keys.has(' '));
       if (panLike && this.camera.view === 'perspective') {
         const hit = this.pick(e.offsetX, e.offsetY);
@@ -522,6 +554,7 @@ export class ViewportController {
       this.tool.pointerDown(p, this.toolCtx);
     };
     const move = (e: PointerEvent) => {
+      if (playing()) return;
       if (this.cam.pointerMove(e.offsetX, e.offsetY)) return;
       const p = this.toolPointer(e);
       this.updateHover(p);
@@ -535,6 +568,7 @@ export class ViewportController {
     };
     const wheel = (e: WheelEvent) => {
       e.preventDefault();
+      if (playing()) return;
       const scale = e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? Math.max(1, canvas.clientHeight) : 1;
       const hit = this.camera.view === 'perspective' ? this.pick(e.offsetX, e.offsetY) : null;
       this.cam.wheel(e.deltaY * scale, hit ? hit.t : null);
@@ -631,6 +665,11 @@ export class ViewportController {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     const aspect = w / Math.max(1, h);
     this.lastStats = this.tiles.draw(this.camera, aspect, FOG);
+    const playing = this.state.mode.value === 'play';
+    if (playing) {
+      this.updateCameraInfo();
+      return;
+    }
     if (this.ghostParts.length > 0) this.tiles.drawGhosts(this.camera, aspect, this.ghostParts, GHOST_ALPHA);
     if (this.selFill.length >= 9) this.lines.drawTriangles(this.camera, aspect, this.selFill, SEL_FILL, false);
     if (this.selLines.length >= 6) this.lines.drawLines(this.camera, aspect, this.selLines, ACCENT, false);
@@ -640,6 +679,10 @@ export class ViewportController {
     const p = this.preview;
     if (p && p.lines.length >= 6) this.lines.drawLines(this.camera, aspect, p.lines, ACCENT, false);
     if (p && p.points.length >= 3) this.lines.drawPoints(this.camera, aspect, p.points, ACCENT, 6);
+    this.updateCameraInfo();
+  }
+
+  private updateCameraInfo(): void {
     const info = this.cameraInfo.value;
     if (info.yaw !== this.camera.yaw || info.pitch !== this.camera.pitch || info.view !== this.camera.view) {
       this.cameraInfo.value = { yaw: this.camera.yaw, pitch: this.camera.pitch, view: this.camera.view };

@@ -7,6 +7,8 @@ import { HintCard } from '../ui/HintCard';
 import { StatsOverlay } from '../ui/StatsOverlay';
 import { AxisGizmo } from './AxisGizmo';
 import { NoWebGl2Error, ViewportController } from './viewportController';
+import { PlayController } from '../play/playController';
+import { PlayOverlay } from '../play/PlayOverlay';
 
 const VIEWS: ViewKind[] = ['perspective', 'top', 'front', 'side'];
 
@@ -26,18 +28,23 @@ export function Viewport({ ctx, session }: { ctx: AppCtx; session: EditorSession
       setError(e instanceof NoWebGl2Error ? t.fehler.keinWebgl2 : t.fehler.ansicht(e instanceof Error ? e.message : String(e)));
       return;
     }
+    const play = new PlayController(c, session, state);
     ctx.viewport.current = c;
+    ctx.play.current = play;
     setCtrl(c);
     return () => {
+      play.dispose();
       c.dispose();
       if (ctx.viewport.current === c) ctx.viewport.current = null;
+      if (ctx.play.current === play) ctx.play.current = null;
       setCtrl(null);
     };
   }, [session]);
 
   const view = state.view.value;
+  const playing = state.mode.value === 'play';
   return (
-    <main aria-label={t.ansicht.bereich} class="viewport">
+    <main aria-label={t.ansicht.bereich} class={playing ? 'viewport playing' : 'viewport'}>
       {error ? (
         <p role="alert" class="viewport-error">
           {error}
@@ -45,6 +52,8 @@ export function Viewport({ ctx, session }: { ctx: AppCtx; session: EditorSession
       ) : (
         <canvas ref={canvasRef} class="viewport-canvas" />
       )}
+      {playing && ctx.play.current && <PlayOverlay play={ctx.play.current} />}
+      {!playing && (
       <div role="group" aria-label={t.ansicht.label} class="seg view-switch">
         {VIEWS.map((v) => (
           <button
@@ -59,9 +68,10 @@ export function Viewport({ ctx, session }: { ctx: AppCtx; session: EditorSession
           </button>
         ))}
       </div>
-      {ctrl && <AxisGizmo ctrl={ctrl} />}
-      <p class="camera-hint">{t.kamera}</p>
-      <HintCard state={state} />
+      )}
+      {ctrl && !playing && <AxisGizmo ctrl={ctrl} />}
+      {!playing && <p class="camera-hint">{t.kamera}</p>}
+      {!playing && <HintCard state={state} />}
       {ctrl && <StatsOverlay ctx={ctx} />}
     </main>
   );

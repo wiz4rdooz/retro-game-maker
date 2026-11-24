@@ -153,7 +153,16 @@ export function TopBar({ ctx, session }: { ctx: AppCtx; session: EditorSession }
           <IconRedo />
         </button>
         <div class="divider-v" aria-hidden="true" />
-        <button type="button" class="btn-primary play-button" title={`${t.leiste.spielen} · F5`}>
+        <button
+          type="button"
+          class="btn-primary play-button"
+          title={`${t.leiste.spielen} · F5`}
+          aria-pressed={state.mode.value === 'play'}
+          onClick={(e) => {
+            (e.currentTarget as HTMLButtonElement).blur();
+            ctx.play.current?.toggle();
+          }}
+        >
           <IconPlay />
           {t.leiste.spielen}
           <kbd>F5</kbd>

@@ -4,6 +4,7 @@ import { DEFAULT_BRUSH } from '../tools/brush';
 import type { EditorState } from '../state/editorState';
 import { installKeyboard } from '../viewport/keyboard';
 import type { ViewportController } from '../viewport/viewportController';
+import type { PlayController } from '../play/playController';
 import { Viewport } from '../viewport/Viewport';
 import { RightPanel } from '../ui/RightPanel';
 import { StartScreen } from '../ui/StartScreen';
@@ -18,10 +19,11 @@ export interface AppCtx {
   state: EditorState;
   session: Signal<EditorSession | null>;
   viewport: { current: ViewportController | null };
+  play: { current: PlayController | null };
 }
 
 export function createAppCtx(state: EditorState): AppCtx {
-  return { state, session: signal(null), viewport: { current: null } };
+  return { state, session: signal(null), viewport: { current: null }, play: { current: null } };
 }
 
 /** Übernimmt eine frisch geöffnete Sitzung in die Oberfläche. */
@@ -53,6 +55,7 @@ export function enterSession(ctx: AppCtx, session: EditorSession): void {
 export async function leaveSession(ctx: AppCtx): Promise<void> {
   const session = ctx.session.value;
   if (!session) return;
+  ctx.play.current?.stop();
   await session.close();
   const { state } = ctx;
   state.mode.value = 'start';
@@ -80,17 +83,20 @@ export function App({ ctx }: { ctx: AppCtx }) {
 
   useEffect(() => {
     if (!session) return;
+    const editing = () => state.mode.value === 'edit';
     return installKeyboard({
       onTool: (id) => {
-        state.tool.value = id;
+        if (editing()) state.tool.value = id;
       },
-      onUndo: () => session.undo(),
-      onRedo: () => session.redo(),
-      onSave: () => void session.autosave.flush(),
-      onPlay: () => {
-        /* Play-Modus folgt in Task 17 */
+      onUndo: () => editing() && session.undo(),
+      onRedo: () => editing() && session.redo(),
+      onSave: () => editing() && void session.autosave.flush(),
+      onPlay: () => ctx.play.current?.toggle(),
+      onKey: (e) => {
+        const play = ctx.play.current;
+        if (play?.active) return play.handleKey(e);
+        return ctx.viewport.current?.handleKey(e) ?? false;
       },
-      onKey: (e) => ctx.viewport.current?.handleKey(e) ?? false,
     });
   }, [session]);
 

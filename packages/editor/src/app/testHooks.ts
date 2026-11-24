@@ -89,16 +89,9 @@ export function installTestHooks(ctx: AppCtx): void {
       return [...cmd.addedIds];
     },
     setCamera: (x: number, y: number, z: number, yaw: number, pitch: number) => {
-      const v = view();
-      if (!v) return;
-      v.camera.position[0] = x;
-      v.camera.position[1] = y;
-      v.camera.position[2] = z;
-      v.camera.yaw = yaw;
-      v.camera.pitch = pitch;
-      v.requestRender();
+      view()?.setCameraPose(x, y, z, yaw, pitch);
     },
-    player: () => null,
+    player: () => ctx.play.current?.playerInfo() ?? null,
     flushSave: () => session()?.autosave.flush() ?? Promise.resolve(false),
   };
 }

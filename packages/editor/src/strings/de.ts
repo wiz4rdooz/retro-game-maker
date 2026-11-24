@@ -152,6 +152,12 @@ export const t = {
     nurEcken: 'Zusammenführen geht im Ecken-Modus (Taste 1).',
     verschieben: 'Verschieben',
   },
+  play: {
+    hinweisLock: 'Esc: zurück zum Editor',
+    hinweisZiehen: 'Linke Maustaste halten zum Umsehen · Esc: zurück zum Editor',
+    fadenkreuz: 'Fadenkreuz',
+    beenden: 'Spiel beenden',
+  },
   kurz: {
     paint: 'Klick: Kachel setzen · Rechtsklick: Kachel aufnehmen',
     block: 'Klick: Block setzen · Rechtsklick: Kachel aufnehmen',

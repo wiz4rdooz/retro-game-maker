@@ -975,3 +975,38 @@ kbd {
 .stats-overlay dd {
   margin: 0;
 }
+
+/* Play-Modus */
+.play-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+.crosshair {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.6);
+}
+.play-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: rgba(17, 18, 20, 0.75);
+  color: var(--text-2);
+  font-size: 12px;
+  zoom: var(--ui-scale, 1);
+}
+.viewport.playing .viewport-canvas {
+  cursor: none;
+}
