@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Welt-Editor – Klar und dunkel</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#4d9fff}a:hover{color:#8cc2ff}
+button{font:inherit}
+</style>
+</helmet>
+<div style="min-height: 900px; display: flex; flex-direction: column; background: #111214; color: #e7e9ee; font-family: Inter, system-ui, sans-serif; font-size: 13px">
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; padding: 6px 12px; min-height: 60px; box-sizing: border-box; background: #17181b; border-bottom: 1px solid #2a2d33">
+<div style="display: flex; align-items: center; gap: 10px; flex: 1 1 220px">
+<div aria-hidden="true" style="width: 32px; height: 32px; border-radius: 8px; background: #1f2a3a; color: #4d9fff; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3zM4 7.5l8 4.5 8-4.5M12 12v9"></path></svg></div>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 14px; font-weight: 600">insel-prototyp</span>
+<span style="font-size: 12px; color: #9aa0ab">Gespeichert</span>
+</div>
+</div>
+<nav aria-label="Werkbänke" style="display: flex; gap: 2px; padding: 2px; border-radius: 10px; border: 1px solid #2a2d33; background: #1f2126">
+<button type="button" style="height: 44px; padding: 0 16px; border: 0; border-radius: 8px; background: transparent; color: #b4bac4; font-size: 13px; font-weight: 500; cursor: pointer">Modelle</button>
+<button type="button" aria-current="page" style="height: 44px; padding: 0 16px; border: 0; border-radius: 8px; background: #2c3a50; color: #ffffff; font-size: 13px; font-weight: 600; cursor: pointer">Welt</button>
+<button type="button" style="height: 44px; padding: 0 16px; border: 0; border-radius: 8px; background: transparent; color: #b4bac4; font-size: 13px; font-weight: 500; cursor: pointer">Regeln</button>
+</nav>
+<div style="display: flex; align-items: center; justify-content: flex-end; gap: 4px; flex: 1 1 220px">
+<button type="button" aria-label="Rückgängig" title="Rückgängig · Strg+Z" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 8px; background: transparent; color: #c3c8d0; cursor: pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11"></path></svg></button>
+<button type="button" aria-label="Wiederholen" title="Wiederholen · Strg+Y" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 8px; background: transparent; color: #c3c8d0; cursor: pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 14l5-5-5-5M20 9H9.5a5.5 5.5 0 0 0 0 11H13"></path></svg></button>
+<div aria-hidden="true" style="width: 1px; height: 24px; margin: 0 6px; background: #2a2d33"></div>
+<button type="button" title="Spielen · F5" style="height: 44px; display: flex; align-items: center; gap: 8px; padding: 0 12px 0 14px; border: 0; border-radius: 8px; background: #4d9fff; color: #08111f; font-size: 13px; font-weight: 600; cursor: pointer"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5L8 5.5z"></path></svg>Spielen<kbd style="padding: 2px 5px; border-radius: 4px; background: rgba(8, 17, 31, 0.16); color: #08111f; font-family: JetBrains Mono, monospace; font-size: 11px">F5</kbd></button>
+</div>
+</header>
+<div style="flex: 1 1 auto; display: flex; flex-wrap: wrap; min-height: 0">
+<nav aria-label="Werkzeuge" style="flex: 0 0 60px; position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0; box-sizing: border-box; background: #17181b; border-right: 1px solid #2a2d33">
+<button type="button" aria-label="Kachel malen" aria-pressed="false" title="Kachel malen · B" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 8px; background: transparent; color: #c3c8d0; cursor: pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.5 4.5l4 4L9 19H5v-4L15.5 4.5zM13.5 6.5l4 4"></path></svg></button>
+<button type="button" aria-label="Block setzen" aria-pressed="true" title="Block setzen · K" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 8px; background: #24364f; color: #8cc2ff; cursor: pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3zM4 7.5l8 4.5 8-4.5M12 12v9"></path></svg></button>
+<button type="button" aria-label="Auswählen" aria-pressed="false" title="Auswählen · A" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 8px; background: transparent; color: #c3c8d0; cursor: pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3l14 7-6 2-2 6L5 3z"></path></svg></button>
+<div aria-hidden="true" style="width: 28px; height: 1px; margin: 4px 0; background: #2a2d33"></div>
+<button type="button" aria-label="Füllen" aria-pressed="false" title="Füllen · G" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 8px; background: transparent; color: #c3c8d0; cursor: pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 11l6-6 8 8-6 6a2 2 0 0 1-2.8 0L5 13.8a2 2 0 0 1 0-2.8zM5 12.5h13.5M19.5 16.5s1.5 1.8 1.5 3a1.5 1.5 0 0 1-3 0c0-1.2 1.5-3 1.5-3z"></path></svg></button>
+<button type="button" aria-label="Pipette" aria-pressed="false" title="Pipette · I" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 8px; background: transparent; color: #c3c8d0; cursor: pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4.5a2.1 2.1 0 0 1 3 0l2 2a2.1 2.1 0 0 1 0 3L17 12l-5-5 2.5-2.5zM12 7l-7 7v5h5l7-7"></path></svg></button>
+<button type="button" aria-label="Radieren" aria-pressed="false" title="Radieren · E" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 8px; background: transparent; color: #c3c8d0; cursor: pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 15l9-9 6 6-7 7H8l-4-4zM9.5 9.5l6 6M12 19h8"></path></svg></button>
+<div aria-hidden="true" style="width: 28px; height: 1px; margin: 4px 0; background: #2a2d33"></div>
+<button type="button" aria-label="Modell platzieren" aria-pressed="false" title="Modell platzieren · M" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 8px; background: transparent; color: #c3c8d0; cursor: pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4a3 3 0 1 1 0 6 3 3 0 0 1 0-6zM6 20v-2a6 6 0 0 1 12 0v2"></path></svg></button>
+<div role="tooltip" style="position: absolute; left: 58px; top: 64px; display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; background: #2a2d33; color: #e7e9ee; font-size: 12px; white-space: nowrap; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4)">Block setzen<kbd style="padding: 1px 5px; border-radius: 4px; background: #3a3e46; color: #e7e9ee; font-family: JetBrains Mono, monospace; font-size: 11px">K</kbd></div>
+</nav>
+<main aria-label="3D-Ansicht" style="flex: 999 1 560px; min-width: 0; min-height: 600px; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #16181b">
+<div role="group" aria-label="Ansicht" style="position: absolute; left: 12px; top: 12px; z-index: 1; display: flex; flex-wrap: wrap; gap: 2px; padding: 2px; border-radius: 10px; border: 1px solid #2a2d33; background: rgba(23, 24, 27, 0.92)">
+<button type="button" aria-pressed="true" style="height: 44px; padding: 0 12px; border: 0; border-radius: 8px; background: #2c3a50; color: #ffffff; font-size: 12px; font-weight: 500; cursor: pointer">Perspektive</button>
+<button type="button" aria-pressed="false" style="height: 44px; padding: 0 12px; border: 0; border-radius: 8px; background: transparent; color: #b4bac4; font-size: 12px; cursor: pointer">Oben</button>
+<button type="button" aria-pressed="false" style="height: 44px; padding: 0 12px; border: 0; border-radius: 8px; background: transparent; color: #b4bac4; font-size: 12px; cursor: pointer">Vorne</button>
+<button type="button" aria-pressed="false" style="height: 44px; padding: 0 12px; border: 0; border-radius: 8px; background: transparent; color: #b4bac4; font-size: 12px; cursor: pointer">Seite</button>
+</div>
+<svg width="72" height="72" viewBox="0 0 72 72" role="img" aria-label="Achsen X, Y und Z" style="position: absolute; right: 12px; top: 12px; z-index: 1">
+<path d="M36 40L58 51" stroke="#ff7a7a" stroke-width="2.5" stroke-linecap="round"></path>
+<path d="M36 40L14 51" stroke="#7ee08f" stroke-width="2.5" stroke-linecap="round"></path>
+<path d="M36 40V14" stroke="#6fb2ff" stroke-width="2.5" stroke-linecap="round"></path>
+<text x="61" y="60" fill="#ff7a7a" font-size="12" font-weight="600" font-family="Inter, system-ui, sans-serif">X</text>
+<text x="3" y="60" fill="#7ee08f" font-size="12" font-weight="600" font-family="Inter, system-ui, sans-serif">Y</text>
+<text x="32" y="11" fill="#6fb2ff" font-size="12" font-weight="600" font-family="Inter, system-ui, sans-serif">Z</text>
+</svg>
+<dc-import name="Szene" accent="#4d9fff" grid="rgba(255, 255, 255, 0.22)" mark="#ff9a3c" font="Inter, system-ui, sans-serif" hint-size="720px,560px"></dc-import>
+<p style="position: absolute; left: 12px; bottom: 12px; z-index: 1; margin: 0; color: #9aa0ab; font-size: 12px">Rechte Maustaste: umsehen · Rad: zoomen · Leertaste: verschieben</p>
+<p style="position: absolute; right: 12px; bottom: 12px; z-index: 1; margin: 0; color: #9aa0ab; font-family: JetBrains Mono, monospace; font-size: 12px">Zoom 100 %</p>
+</main>
+<aside aria-label="Eigenschaften" style="flex: 1 1 300px; max-width: 340px; display: flex; flex-direction: column; box-sizing: border-box; background: #17181b; border-left: 1px solid #2a2d33">
+<section style="border-bottom: 1px solid #2a2d33">
+<h2 style="margin: 0"><button type="button" aria-expanded="true" style="width: 100%; height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; border: 0; background: transparent; color: #9aa0ab; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer">Tileset<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button></h2>
+<div style="display: flex; flex-direction: column; gap: 10px; padding: 0 16px 16px">
+<div style="display: flex; gap: 8px">
+<button type="button" style="flex: 1 1 auto; height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 12px; border: 1px solid #2f333a; border-radius: 8px; background: #1f2126; color: #e7e9ee; font-size: 13px; cursor: pointer">ruinen.png<span style="color: #9aa0ab; font-family: JetBrains Mono, monospace; font-size: 11px">16 × 16</span></button>
+<button type="button" aria-label="Tileset bemalen" title="Tileset bemalen" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; padding: 0; border: 1px solid #2f333a; border-radius: 8px; background: #1f2126; color: #c3c8d0; cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.5 4.5l4 4L9 19H5v-4L15.5 4.5zM13.5 6.5l4 4"></path></svg></button>
+</div>
+<dc-import name="Tileset" accent="#4d9fff" radius="4" cell-bg="#111214" border="#2a2d33" ring-width="2" selected="7" hint-size="284px,92px"></dc-import>
+</div>
+</section>
+<section style="border-bottom: 1px solid #2a2d33">
+<h2 style="margin: 0"><button type="button" aria-expanded="true" style="width: 100%; height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; border: 0; background: transparent; color: #9aa0ab; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer">Pinsel<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button></h2>
+<div style="display: flex; flex-direction: column; gap: 10px; padding: 0 16px 16px">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px">
+<span style="font-size: 13px; font-weight: 500">Steinziegel</span>
+<span style="color: #9aa0ab; font-family: JetBrains Mono, monospace; font-size: 11px">Kachel 8 von 12</span>
+</div>
+<div style="display: flex; gap: 8px">
+<button type="button" style="flex: 1 1 0; height: 44px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid #2f333a; border-radius: 8px; background: #1f2126; color: #e7e9ee; font-size: 13px; cursor: pointer">Drehen<kbd style="padding: 1px 5px; border-radius: 4px; background: #2a2d33; color: #c3c8d0; font-family: JetBrains Mono, monospace; font-size: 11px">R</kbd></button>
+<button type="button" style="flex: 1 1 0; height: 44px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid #2f333a; border-radius: 8px; background: #1f2126; color: #e7e9ee; font-size: 13px; cursor: pointer">Spiegeln<kbd style="padding: 1px 5px; border-radius: 4px; background: #2a2d33; color: #c3c8d0; font-family: JetBrains Mono, monospace; font-size: 11px">X</kbd></button>
+</div>
+<div role="group" aria-label="Pinselgröße" style="display: flex; align-items: center; gap: 8px">
+<span style="flex: 1 1 auto; color: #9aa0ab">Größe</span>
+<div style="display: flex; gap: 2px; padding: 2px; border-radius: 10px; border: 1px solid #2a2d33; background: #1f2126">
+<button type="button" aria-pressed="true" style="width: 44px; height: 44px; border: 0; border-radius: 8px; background: #2c3a50; color: #ffffff; font-family: JetBrains Mono, monospace; font-size: 12px; cursor: pointer">1</button>
+<button type="button" aria-pressed="false" style="width: 44px; height: 44px; border: 0; border-radius: 8px; background: transparent; color: #b4bac4; font-family: JetBrains Mono, monospace; font-size: 12px; cursor: pointer">2</button>
+<button type="button" aria-pressed="false" style="width: 44px; height: 44px; border: 0; border-radius: 8px; background: transparent; color: #b4bac4; font-family: JetBrains Mono, monospace; font-size: 12px; cursor: pointer">3</button>
+</div>
+</div>
+</div>
+</section>
+<section>
+<h2 style="margin: 0"><button type="button" aria-expanded="true" style="width: 100%; height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; border: 0; background: transparent; color: #9aa0ab; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer">Szene<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button></h2>
+<ul style="list-style: none; margin: 0; padding: 0 8px 12px; display: flex; flex-direction: column; gap: 2px">
+<li style="display: flex; align-items: center; gap: 2px">
+<button type="button" aria-label="Boden ausblenden" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 8px; background: transparent; color: #9aa0ab; cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12zM12 9.2a2.8 2.8 0 1 1 0 5.6 2.8 2.8 0 0 1 0-5.6z"></path></svg></button>
+<button type="button" style="flex: 1 1 auto; height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; color: #e7e9ee; font-size: 13px; cursor: pointer">Boden<span style="color: #9aa0ab; font-family: JetBrains Mono, monospace; font-size: 11px">Ebene</span></button>
+</li>
+<li style="display: flex; align-items: center; gap: 2px">
+<button type="button" aria-label="Ruine ausblenden" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 8px; background: transparent; color: #9aa0ab; cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12zM12 9.2a2.8 2.8 0 1 1 0 5.6 2.8 2.8 0 0 1 0-5.6z"></path></svg></button>
+<button type="button" aria-current="true" style="flex: 1 1 auto; height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; border: 0; border-radius: 8px; background: #24364f; color: #ffffff; font-size: 13px; font-weight: 500; cursor: pointer">Ruine<span style="color: #8cc2ff; font-family: JetBrains Mono, monospace; font-size: 11px">Ebene · aktiv</span></button>
+</li>
+<li style="display: flex; align-items: center; gap: 2px">
+<button type="button" aria-label="Tür ausblenden" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 8px; background: transparent; color: #9aa0ab; cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12zM12 9.2a2.8 2.8 0 1 1 0 5.6 2.8 2.8 0 0 1 0-5.6z"></path></svg></button>
+<button type="button" style="flex: 1 1 auto; height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; color: #e7e9ee; font-size: 13px; cursor: pointer">Tür<span style="color: #9aa0ab; font-family: JetBrains Mono, monospace; font-size: 11px">Modell</span></button>
+</li>
+<li style="display: flex; align-items: center; gap: 2px">
+<button type="button" aria-label="Truhe ausblenden" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 8px; background: transparent; color: #9aa0ab; cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12zM12 9.2a2.8 2.8 0 1 1 0 5.6 2.8 2.8 0 0 1 0-5.6z"></path></svg></button>
+<button type="button" style="flex: 1 1 auto; height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; color: #e7e9ee; font-size: 13px; cursor: pointer">Truhe<span style="color: #9aa0ab; font-family: JetBrains Mono, monospace; font-size: 11px">Modell</span></button>
+</li>
+<li style="display: flex; align-items: center; gap: 2px">
+<button type="button" aria-label="Skelett ausblenden" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 8px; background: transparent; color: #9aa0ab; cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12zM12 9.2a2.8 2.8 0 1 1 0 5.6 2.8 2.8 0 0 1 0-5.6z"></path></svg></button>
+<button type="button" style="flex: 1 1 auto; height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; color: #e7e9ee; font-size: 13px; cursor: pointer">Skelett<span style="color: #ffb36b; font-family: JetBrains Mono, monospace; font-size: 11px">Regel · Gegner</span></button>
+</li>
+</ul>
+</section>
+</aside>
+</div>
+<footer style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px 20px; padding: 4px 12px; min-height: 30px; box-sizing: border-box; background: #111214; border-top: 1px solid #2a2d33; color: #9aa0ab; font-family: JetBrains Mono, monospace; font-size: 12px">
+<span>x 2  y 4  z 1</span>
+<span>Raster 1</span>
+<span>Pinsel Steinziegel</span>
+<span style="margin-left: auto; font-family: Inter, system-ui, sans-serif">Klick: Block setzen · Rechtsklick: Kachel aufnehmen</span>
+</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>
