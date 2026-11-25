@@ -131,6 +131,11 @@ export class CameraController {
     this.onChange();
   }
 
+  /** true beim Umsehen mit gehaltener Flug-Taste: Die Bildschleife muss weiterlaufen (auch bei dt = 0). */
+  wantsFrames(keys: ReadonlySet<string>): boolean {
+    return this.mode === 'look' && FLY_KEYS.some((k) => keys.has(k));
+  }
+
   /** Fliegen; true, wenn sich die Kamera bewegt hat. */
   update(dt: number, keys: ReadonlySet<string>): boolean {
     if (this.mode !== 'look' || !(dt > 0)) return false;

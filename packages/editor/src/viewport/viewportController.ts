@@ -230,7 +230,10 @@ export class ViewportController {
       this.lastFrame = now;
       const playing = this.frameHook !== null;
       if (this.frameHook) this.frameHook(dt);
-      const flying = !playing && this.cam.update(dt, this.keys);
+      // Weiterfliegen hängt an den gehaltenen Tasten, nicht daran, ob sich dieses Bild etwas bewegt hat:
+      // Beginnt ein Bild vor dem Tastendruck, ist dt = 0 – sonst bliebe die Schleife dann stehen
+      const flying = !playing && this.cam.wantsFrames(this.keys);
+      if (flying) this.cam.update(dt, this.keys);
       const more = this.remesh(MESH_BUDGET_MS);
       this.draw();
       this.countFrame(now);
