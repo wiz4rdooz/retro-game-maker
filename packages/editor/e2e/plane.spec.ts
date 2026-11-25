@@ -71,3 +71,16 @@ test('Menü offen: Klick in die Ansicht schließt ohne zu malen, Werkzeug-Taste 
   await expect(menu).toBeHidden();
   await expect.poll(async () => (await hooks(page, 'state')).mode).toBe('play');
 });
+
+test('kleines Fenster: das Menü passt ganz hinein, „Tiefer“ ist erreichbar (Review)', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 620 });
+  await page.goto('/');
+  await newProject(page);
+  const { knopf, menu } = parts(page);
+  await knopf.click();
+  const tiefer = menu.getByRole('menuitem', { name: /Tiefer/ });
+  const box = (await tiefer.boundingBox())!;
+  expect(box.y + box.height).toBeLessThanOrEqual(620);
+  await tiefer.click();
+  expect((await hooks(page, 'state')).planeLabel).toBe('Boden y = -1');
+});

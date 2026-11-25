@@ -24,9 +24,21 @@ export function PlaneMenu({ state, onStep }: { state: EditorState; onStep: (step
   // gleich nach dem Aufklappen (vor dem nächsten Tastendruck) liegt der Fokus im Menü
   useLayoutEffect(() => {
     if (!open) return;
-    const items = menuRef.current?.querySelectorAll<HTMLElement>('[role^="menuitem"]');
-    const checked = menuRef.current?.querySelector<HTMLElement>('[aria-checked="true"]');
-    (checked ?? items?.[0])?.focus();
+    const menu = menuRef.current;
+    if (menu) {
+      // Passt das Menü unten nicht ins Fenster, rückt es nach oben (höchstens bis 8 px unter den Rand)
+      menu.style.top = '';
+      const r = menu.getBoundingClientRect();
+      const over = Math.min(r.bottom - (window.innerHeight - 8), r.top - 8);
+      if (over > 0) {
+        // style.top zählt in Pixeln vor dem Zoom der Leiste (UI-Größe)
+        const zoom = menu.offsetHeight > 0 ? r.height / menu.offsetHeight : 1;
+        menu.style.top = `${parseFloat(getComputedStyle(menu).top) - over / zoom}px`;
+      }
+    }
+    const items = menu?.querySelectorAll<HTMLElement>('[role^="menuitem"]');
+    const checked = menu?.querySelector<HTMLElement>('[aria-checked="true"]');
+    (checked ?? items?.[0])?.focus({ preventScroll: true });
     const outside = (e: PointerEvent) => {
       const target = e.target as Node;
       if (menuRef.current?.contains(target) || buttonRef.current?.contains(target)) return;
