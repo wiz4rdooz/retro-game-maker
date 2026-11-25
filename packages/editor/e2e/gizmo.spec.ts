@@ -26,3 +26,25 @@ test('grünen Pfeil nach oben ziehen hebt die Auswahl im Raster, Strg+Z stellt h
   await page.keyboard.press('Control+z');
   expect((await hooks(page, 'tileCorners')).map((c: number[]) => c[1])[0]).toBe(0);
 });
+
+test('Quadrat in Augenhöhe über den Horizont ziehen: die Kachel springt nicht hinter die Kamera (Review)', async ({ page }) => {
+  await page.goto('/');
+  await newProject(page);
+  await hooks(page, 'exec', 'addFloor', [0, 0, 1, 1, 0]);
+  await hooks(page, 'setCamera', 0.5, 1.6, 6, 0, -0.15);
+  await page.keyboard.press('a');
+  await page.keyboard.press('Control+a');
+  const g = await hooks(page, 'gizmo');
+  expect(g.planes[1].visible).toBe(true);
+  const c = g.planes[1].cornersPx as number[];
+  const box = (await page.locator('main canvas').boundingBox())!;
+  const sx = box.x + (c[0] + c[2] + c[4] + c[6]) / 4;
+  const sy = box.y + (c[1] + c[3] + c[5] + c[7]) / 4;
+  await page.mouse.move(sx, sy);
+  await page.mouse.down();
+  await page.mouse.move(sx, box.y + 4, { steps: 12 });
+  await page.mouse.up();
+  const zs = (await hooks(page, 'tileCorners'))[0].filter((_: number, i: number) => i % 3 === 2);
+  expect(zs.every(Number.isFinite)).toBe(true);
+  expect(Math.max(...zs)).toBeLessThan(6);
+});

@@ -324,9 +324,10 @@ export class SelectTool implements Tool {
     const { kind, axis } = d.handle;
     const sel = c.state.selection.value;
     let text: string;
+    // Liefert der Strahl keinen gültigen Wert (z. B. über dem Horizont), bleibt der letzte stehen
     if (kind === 'ring') {
       const angle = ringDragAngle(d.pivot, axis, d.o0, d.d0, o, dir, p.alt ? null : RING_SNAP);
-      if (angle === d.angle && d.active) return;
+      if (angle === null || (angle === d.angle && d.active)) return;
       d.angle = angle;
       d.changes = angle === 0 ? [] : rotateTiles(c.world, selectedTileIds(sel, c), AXIS_NAMES[axis], angle, d.pivot);
       text = `${Math.round((angle * 180) / Math.PI)}°`;
@@ -334,12 +335,15 @@ export class SelectTool implements Tool {
       let delta: [number, number, number];
       if (kind === 'axis') {
         const s = axisDragDelta(d.pivot, axis, d.o0, d.d0, o, dir, snap);
+        if (s === null) return;
         delta = [0, 0, 0];
         delta[axis] = s;
         text = metres(s);
       } else {
-        delta = planeDragDelta(d.pivot, axis, d.o0, d.d0, o, dir, snap);
-        text = [0, 1, 2].filter((k) => k !== axis).map((k) => metres(delta[k])).join(' · ');
+        const v = planeDragDelta(d.pivot, axis, d.o0, d.d0, o, dir, snap);
+        if (!v) return;
+        delta = v;
+        text = [0, 1, 2].filter((k) => k !== axis).map((k) => metres(v[k])).join(' · ');
       }
       if (delta[0] === d.delta[0] && delta[1] === d.delta[1] && delta[2] === d.delta[2] && d.active) return;
       d.delta = delta;

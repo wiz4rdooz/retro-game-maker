@@ -63,7 +63,7 @@ describe('Gizmo-Rechnung', () => {
   it('Quadrat mit Normalachse Y verschiebt nur x und z', () => {
     const [o0, d0] = ray(cam, [0, 0, 0]);
     const [o1, d1] = ray(cam, [1.2, 0, -0.7]);
-    const free = planeDragDelta([0, 0, 0], 1, o0, d0, o1, d1, null);
+    const free = planeDragDelta([0, 0, 0], 1, o0, d0, o1, d1, null)!;
     expect(free[0]).toBeCloseTo(1.2, 4);
     expect(free[1]).toBe(0);
     expect(free[2]).toBeCloseTo(-0.7, 4);
@@ -97,9 +97,34 @@ describe('Gizmo-Rechnung', () => {
     const behind = lookFrom([0, 0, 5], [0, 0, 10]);
     expect(gizmoLayout([0, 0, 0], behind, H, projector(behind), true)).toBeNull();
     expect(gizmoLayout([Number.NaN, 0, 0], cam, H, projector(cam), true)).toBeNull();
+    // Strahl parallel zur Zugachse bzw. zur Fläche: kein gültiger Wert → null (der Griff bleibt stehen)
     const along = vec3.create(0, 1, 0);
-    expect(axisDragDelta([0, 0, 0], 1, [0, 5, 0], along, [0, 6, 0], along, null)).toBe(0);
-    expect(planeDragDelta([0, 0, 0], 1, [0, 5, 0], [1, 0, 0], [0, 5, 0], [1, 0, 0], null)).toEqual([0, 0, 0]);
-    expect(ringDragAngle([0, 0, 0], 1, [0, 5, 0], [1, 0, 0], [0, 5, 0], [0, 0, 1], null)).toBe(0);
+    expect(axisDragDelta([0, 0, 0], 1, [0, 5, 0], along, [0, 6, 0], along, null)).toBeNull();
+    expect(planeDragDelta([0, 0, 0], 1, [0, 5, 0], [1, 0, 0], [0, 5, 0], [1, 0, 0], null)).toBeNull();
+    expect(ringDragAngle([0, 0, 0], 1, [0, 5, 0], [1, 0, 0], [0, 5, 0], [0, 0, 1], null)).toBeNull();
+  });
+});
+
+describe('Perspektive: Zeiger über den Horizont (Review)', () => {
+  // Kamera in Augenhöhe bei (0, 2, 10), Drehpunkt 8 m voraus auf dem Boden
+  const n = (v: number[]) => { const l = Math.hypot(v[0], v[1], v[2]); return [v[0] / l, v[1] / l, v[2] / l]; };
+  const o = [0, 2, 10];
+  const pivot = [0, 0, 2];
+  const toPivot = n([0, -2, -8]);
+  const below = n([0, -0.1, -1]); // trifft den Boden bei z = −10
+  const above = n([0, 0.05, -1]); // über dem Horizont: Boden nur hinter der Kamera
+  const right = n([2, -2, -8]); // trifft den Boden bei x = 2, z = 2
+
+  it('Quadrat: unter dem Horizont gerastert, darüber null statt Sprung hinter die Kamera', () => {
+    expect(planeDragDelta(pivot, 1, o, toPivot, o, below, 1)).toEqual([0, 0, -12]);
+    expect(planeDragDelta(pivot, 1, o, toPivot, o, above, 1)).toBeNull();
+  });
+  it('Pfeil: jenseits des Fluchtpunkts null statt Vorzeichenwechsel', () => {
+    expect(axisDragDelta(pivot, 2, o, toPivot, o, below, 1)).toBe(-12);
+    expect(axisDragDelta(pivot, 2, o, toPivot, o, above, 1)).toBeNull();
+  });
+  it('Ring: Fläche hinter der Kamera → null', () => {
+    expect(ringDragAngle(pivot, 1, o, right, o, below, null)).not.toBeNull();
+    expect(ringDragAngle(pivot, 1, o, right, o, above, null)).toBeNull();
   });
 });

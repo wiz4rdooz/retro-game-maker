@@ -167,8 +167,14 @@ export function hitGizmo(layout: GizmoLayout, px: number, py: number): GizmoHand
 
 const snapTo = (v: number, snap: number | null) => (snap && snap > 0 ? Math.round(v / snap) * snap : v);
 const fin = (v: number) => (Number.isFinite(v) ? v : 0);
+/** Weiter entfernte Treffer gelten als ungültig (Rechen-Unsinn bei fast parallelen Strahlen). */
+const MAX_RAY = 1e5;
 
-/** Parameter s des Punkts auf der Achse (pivot + s·e), der dem Strahl am nächsten liegt; null bei parallel. */
+/**
+ * Parameter s des Punkts auf der Achse (pivot + s·e), der dem Strahl am nächsten liegt.
+ * null, wenn der Strahl parallel läuft oder die nächste Stelle hinter der Kamera liegt
+ * (Zeiger jenseits des Fluchtpunkts der Achse) – sonst spränge der Griff auf die andere Seite.
+ */
 function axisParam(pivot: ArrayLike<number>, axis: number, o: ArrayLike<number>, d: ArrayLike<number>): number | null {
   const e = AXES[axis];
   const dl = Math.hypot(d[0], d[1], d[2]);
@@ -180,10 +186,16 @@ function axisParam(pivot: ArrayLike<number>, axis: number, o: ArrayLike<number>,
   const w0 = [pivot[0] - o[0], pivot[1] - o[1], pivot[2] - o[2]];
   const dd = e[0] * w0[0] + e[1] * w0[1] + e[2] * w0[2];
   const ee = dx * w0[0] + dy * w0[1] + dz * w0[2];
-  return (b * ee - dd) / denom;
+  const t = (ee - b * dd) / denom;
+  if (!(t > 0 && t < MAX_RAY)) return null;
+  const s = (b * ee - dd) / denom;
+  return Number.isFinite(s) ? s : null;
 }
 
-/** Strecke entlang der Achse zwischen zwei Zeiger-Strahlen, eingerastet (snap) oder frei (null). */
+/**
+ * Strecke entlang der Achse zwischen zwei Zeiger-Strahlen, eingerastet (snap) oder frei (null).
+ * null, wenn einer der Strahlen keinen gültigen Punkt liefert – dann bleibt der letzte Wert stehen.
+ */
 export function axisDragDelta(
   pivot: ArrayLike<number>,
   axis: 0 | 1 | 2,
@@ -192,22 +204,26 @@ export function axisDragDelta(
   o1: ArrayLike<number>,
   d1: ArrayLike<number>,
   snap: number | null,
-): number {
+): number | null {
   const s0 = axisParam(pivot, axis, o0, d0);
   const s1 = axisParam(pivot, axis, o1, d1);
-  if (s0 === null || s1 === null) return 0;
+  if (s0 === null || s1 === null) return null;
   return fin(snapTo(s1 - s0, snap));
 }
 
+/** Schnitt des Strahls mit der Fläche durch den Drehpunkt; null bei parallel oder hinter der Kamera. */
 function planeHit(pivot: ArrayLike<number>, normal: number, o: ArrayLike<number>, d: ArrayLike<number>): number[] | null {
   const den = d[normal];
   if (!(Math.abs(den) > 1e-6)) return null;
   const t = (pivot[normal] - o[normal]) / den;
-  if (!Number.isFinite(t)) return null;
+  if (!(t > 0 && t < MAX_RAY)) return null;
   return [o[0] + d[0] * t, o[1] + d[1] * t, o[2] + d[2] * t];
 }
 
-/** Verschiebung in der Fläche senkrecht zu normalAxis durch den Drehpunkt; jede Achse eingerastet. */
+/**
+ * Verschiebung in der Fläche senkrecht zu normalAxis durch den Drehpunkt; jede Achse eingerastet.
+ * null, wenn ein Strahl die Fläche nicht vor der Kamera trifft (Zeiger über dem Horizont).
+ */
 export function planeDragDelta(
   pivot: ArrayLike<number>,
   normalAxis: 0 | 1 | 2,
@@ -216,15 +232,18 @@ export function planeDragDelta(
   o1: ArrayLike<number>,
   d1: ArrayLike<number>,
   snap: number | null,
-): [number, number, number] {
+): [number, number, number] | null {
   const h0 = planeHit(pivot, normalAxis, o0, d0);
   const h1 = planeHit(pivot, normalAxis, o1, d1);
-  if (!h0 || !h1) return [0, 0, 0];
+  if (!h0 || !h1) return null;
   const out = [0, 1, 2].map((k) => (k === normalAxis ? 0 : fin(snapTo(h1[k] - h0[k], snap)))) as [number, number, number];
   return out.map((v) => v + 0) as [number, number, number];
 }
 
-/** Drehwinkel um +axis (Rechte-Hand-Regel) zwischen zwei Zeiger-Strahlen, eingerastet oder frei. */
+/**
+ * Drehwinkel um +axis (Rechte-Hand-Regel) zwischen zwei Zeiger-Strahlen, eingerastet oder frei.
+ * null, wenn ein Strahl die Ring-Fläche nicht vor der Kamera trifft oder genau den Drehpunkt.
+ */
 export function ringDragAngle(
   pivot: ArrayLike<number>,
   axis: 0 | 1 | 2,
@@ -233,13 +252,13 @@ export function ringDragAngle(
   o1: ArrayLike<number>,
   d1: ArrayLike<number>,
   snapRad: number | null,
-): number {
+): number | null {
   const h0 = planeHit(pivot, axis, o0, d0);
   const h1 = planeHit(pivot, axis, o1, d1);
-  if (!h0 || !h1) return 0;
+  if (!h0 || !h1) return null;
   const v0 = [h0[0] - pivot[0], h0[1] - pivot[1], h0[2] - pivot[2]];
   const v1 = [h1[0] - pivot[0], h1[1] - pivot[1], h1[2] - pivot[2]];
-  if (!(Math.hypot(v0[0], v0[1], v0[2]) > 1e-9) || !(Math.hypot(v1[0], v1[1], v1[2]) > 1e-9)) return 0;
+  if (!(Math.hypot(v0[0], v0[1], v0[2]) > 1e-9) || !(Math.hypot(v1[0], v1[1], v1[2]) > 1e-9)) return null;
   const c = [v0[1] * v1[2] - v0[2] * v1[1], v0[2] * v1[0] - v0[0] * v1[2], v0[0] * v1[1] - v0[1] * v1[0]];
   const angle = Math.atan2(c[axis], v0[0] * v1[0] + v0[1] * v1[1] + v0[2] * v1[2]);
   return fin(snapTo(angle, snapRad));
