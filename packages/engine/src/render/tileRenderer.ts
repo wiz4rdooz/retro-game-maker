@@ -43,8 +43,13 @@ interface Texture {
   image: TexImageSource;
 }
 
-const ATTRIBS = ['aPos', 'aUv', 'aShade'];
-const UNIFORMS = ['uViewProj', 'uCamPos', 'uTex', 'uFogColor', 'uFogStart', 'uFogEnd', 'uAlpha'];
+const ATTRIBS = ['aPos', 'aLocal', 'aCell', 'aShade', 'aRank'];
+const UNIFORMS = ['uViewProj', 'uCamPos', 'uTex', 'uTileSize', 'uDepthStep', 'uRankAdd', 'uFogColor', 'uFogStart', 'uFogEnd', 'uAlpha'];
+
+/** Tiefen-Schritt je Rangstufe in NDC: 8 Einheiten eines 24-bit-Tiefenpuffers. */
+export const DEPTH_STEP_NDC = (2 * 8) / 2 ** 24;
+/** Die Geister-Vorschau liegt immer vor deckungsgleichen Kacheln. */
+const GHOST_RANK = 3;
 
 /** Zeichnet Chunks aus Kacheln (ein VAO je Chunk und Tileset) plus Geister-Vorschau. */
 export class TileRenderer {
@@ -102,7 +107,7 @@ export class TileRenderer {
     extractFrustum(this.viewProj, this.planes);
     const ortho = camera.view !== 'perspective';
     const visible = selectVisibleChunks(this.chunks.values(), this.planes, camera.position, ortho ? Infinity : fog.viewDistance);
-    this.begin(camera, fog, ortho, 1);
+    this.begin(camera, fog, ortho, 1, 0);
     for (const key of visible) {
       const ch = this.chunks.get(key)!;
       stats.visibleChunks++;
@@ -125,7 +130,7 @@ export class TileRenderer {
     this.ghost = parts.map((p) => this.uploadPart(p));
     if (this.ghost.length === 0) return;
     camera.viewProj(this.viewProj, aspect);
-    this.begin(camera, { color: [0, 0, 0], start: 1e9, end: 1e9 + 1, viewDistance: Infinity }, true, alpha);
+    this.begin(camera, { color: [0, 0, 0], start: 1e9, end: 1e9 + 1, viewDistance: Infinity }, true, alpha, GHOST_RANK);
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     gl.depthMask(false);
@@ -147,7 +152,7 @@ export class TileRenderer {
     this.ghost = [];
   }
 
-  private begin(camera: Camera, fog: FogOptions, noFog: boolean, alpha: number): void {
+  private begin(camera: Camera, fog: FogOptions, noFog: boolean, alpha: number, rankAdd: number): void {
     const gl = this.gl;
     const u = this.prog.uniforms;
     gl.useProgram(this.prog.program);
@@ -162,6 +167,8 @@ export class TileRenderer {
     gl.uniform1f(u.uFogStart, noFog ? 1e9 : fog.start);
     gl.uniform1f(u.uFogEnd, noFog ? 1e9 + 1 : fog.end);
     gl.uniform1f(u.uAlpha, alpha);
+    gl.uniform1f(u.uDepthStep, DEPTH_STEP_NDC);
+    gl.uniform1f(u.uRankAdd, rankAdd);
     gl.uniform1i(u.uTex, 0);
     gl.activeTexture(gl.TEXTURE0);
   }
@@ -170,6 +177,7 @@ export class TileRenderer {
     const t = this.textures.get(id) ?? this.textures.get(-1);
     if (!t) return false;
     this.gl.bindTexture(this.gl.TEXTURE_2D, t.tex);
+    this.gl.uniform1f(this.prog.uniforms.uTileSize, t.info.tileSize);
     return true;
   }
 
@@ -204,8 +212,10 @@ export class TileRenderer {
       buffers.push(b);
     };
     attrib(p.positions, a.aPos, 3);
-    attrib(p.uvs, a.aUv, 2);
+    attrib(p.locals, a.aLocal, 2);
+    attrib(p.cells, a.aCell, 2);
     attrib(p.shades, a.aShade, 1);
+    attrib(p.ranks, a.aRank, 1);
     const ib = gl.createBuffer()!;
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib);
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, p.indices, gl.STATIC_DRAW);

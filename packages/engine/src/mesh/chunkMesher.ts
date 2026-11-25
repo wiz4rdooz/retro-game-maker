@@ -1,5 +1,6 @@
 import { quadIsDegenerate, quadNormal } from '../geometry/quad';
-import { tileUVs, type TilesetInfo } from '../geometry/uv';
+import { tileLocalUVs } from '../geometry/tileFrame';
+import type { TilesetInfo } from '../geometry/uv';
 import type { Chunk } from '../world/chunk';
 
 const L_LEN = Math.hypot(0.35, 1, 0.6);
@@ -16,8 +17,13 @@ export function faceShade(nx: number, ny: number, nz: number): number {
 export interface ChunkMeshPart {
   tileset: number;
   positions: Float32Array;
-  uvs: Float32Array;
+  /** Texturkoordinaten in Kachel-Einheiten (2 je Ecke), Wiederholung im Shader. */
+  locals: Float32Array;
+  /** Kachel im Tileset (tx, ty) je Ecke. */
+  cells: Float32Array;
   shades: Float32Array;
+  /** Rangstufe 0–3 je Ecke: höhere Stufen liegen bei Überlappung in derselben Fläche vorn. */
+  ranks: Float32Array;
   indices: Uint32Array;
   triangles: number;
 }
@@ -27,7 +33,7 @@ interface Builder {
   quads: number;
 }
 
-const tmpUv = new Float32Array(8);
+const tmpLocal = new Float32Array(8);
 const tmpN = new Float32Array(3);
 const ORDER_FRONT = [0, 1, 2, 3];
 const ORDER_BACK = [0, 3, 2, 1];
@@ -70,8 +76,10 @@ export function buildChunkMesh(
       part: {
         tileset: tsId,
         positions: new Float32Array(n * 12),
-        uvs: new Float32Array(n * 8),
+        locals: new Float32Array(n * 8),
+        cells: new Float32Array(n * 8),
         shades: new Float32Array(n * 4),
+        ranks: new Float32Array(n * 4),
         indices: new Uint32Array(n * 6),
         triangles: n * 2,
       },
@@ -83,18 +91,19 @@ export function buildChunkMesh(
     if (sides[i] === 0) continue;
     const tsId = partOf[i];
     const b = builders.get(tsId)!;
-    const info = tilesets.get(tsId)!;
     const bits = chunk.bits[i];
     const own = tsId === chunk.tileset[i];
-    tileUVs(own ? chunk.txy[i * 2] : 0, own ? chunk.txy[i * 2 + 1] : 0, (bits & 3) as 0 | 1 | 2 | 3, (bits & 4) !== 0, (bits & 8) !== 0, info, tmpUv);
+    tileLocalUVs(c, i * 12, (bits & 3) as 0 | 1 | 2 | 3, (bits & 4) !== 0, (bits & 8) !== 0, tmpLocal);
+    const tx = own ? chunk.txy[i * 2] : 0;
+    const ty = own ? chunk.txy[i * 2 + 1] : 0;
     quadNormal(c, tmpN, i * 12);
-    writeQuad(b, c, i * 12, ORDER_FRONT, faceShade(tmpN[0], tmpN[1], tmpN[2]));
-    if (sides[i] === 2) writeQuad(b, c, i * 12, ORDER_BACK, faceShade(-tmpN[0], -tmpN[1], -tmpN[2]));
+    writeQuad(b, c, i * 12, ORDER_FRONT, faceShade(tmpN[0], tmpN[1], tmpN[2]), tx, ty, 0);
+    if (sides[i] === 2) writeQuad(b, c, i * 12, ORDER_BACK, faceShade(-tmpN[0], -tmpN[1], -tmpN[2]), tx, ty, 0);
   }
   return [...builders.values()].map((b) => b.part);
 }
 
-function writeQuad(b: Builder, corners: Float32Array, base: number, order: number[], shade: number): void {
+function writeQuad(b: Builder, corners: Float32Array, base: number, order: number[], shade: number, tx: number, ty: number, rank: number): void {
   const p = b.part;
   const q = b.quads++;
   const v0 = q * 4;
@@ -104,9 +113,12 @@ function writeQuad(b: Builder, corners: Float32Array, base: number, order: numbe
     p.positions[pv] = corners[base + src * 3];
     p.positions[pv + 1] = corners[base + src * 3 + 1];
     p.positions[pv + 2] = corners[base + src * 3 + 2];
-    p.uvs[(v0 + k) * 2] = tmpUv[src * 2];
-    p.uvs[(v0 + k) * 2 + 1] = tmpUv[src * 2 + 1];
+    p.locals[(v0 + k) * 2] = tmpLocal[src * 2];
+    p.locals[(v0 + k) * 2 + 1] = tmpLocal[src * 2 + 1];
+    p.cells[(v0 + k) * 2] = tx;
+    p.cells[(v0 + k) * 2 + 1] = ty;
     p.shades[v0 + k] = shade;
+    p.ranks[v0 + k] = rank;
   }
   const ii = q * 6;
   p.indices[ii] = v0;
