@@ -78,6 +78,10 @@ export const t = {
     ebeneGesperrt: 'Diese Ebene ist gesperrt oder ausgeblendet.',
   },
   ebene: {
+    knopf: 'Zeichenebene',
+    knopfMit: (name: string) => `Zeichenebene: ${name}`,
+    hoeher: 'Höher',
+    tiefer: 'Tiefer',
     boden: (o: string) => `Boden y = ${o}`,
     wandX: (o: string) => `Wand X = ${o}`,
     wandZ: (o: string) => `Wand Z = ${o}`,
@@ -93,7 +97,6 @@ export const t = {
     beidseitig: 'Beidseitig',
     ohneKollision: 'Ohne Kollision',
     deckelEntfernen: 'Deckel-Kachel entfernen',
-    zeichenebene: 'Zeichenebene',
     ebenen: { auto: 'Auto', y: 'Boden', x: 'Wand X', z: 'Wand Z' },
   },
   ebenen: {

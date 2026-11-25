@@ -40,6 +40,7 @@ export function installTestHooks(ctx: AppCtx): void {
         tool: state.tool.value,
         view: state.view.value,
         drawPlane: state.drawPlane.value,
+        planeLabel: state.planeLabel.value,
         snap: state.snap.value,
         selectMode: state.selectMode.value,
         brush: state.brush.value,

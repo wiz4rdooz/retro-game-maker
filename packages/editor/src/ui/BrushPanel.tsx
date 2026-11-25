@@ -1,16 +1,14 @@
 import { useEffect, useRef } from 'preact/hooks';
 import type { AppCtx } from '../app/App';
 import type { EditorSession } from '../app/session';
-import type { DrawPlaneMode } from '../state/editorState';
 import { t } from '../strings/de';
 import type { BrushState } from '../tools/brush';
 import { IconClose } from './icons';
 import { PanelSection } from './PanelSection';
 
-const PLANES: DrawPlaneMode[] = ['auto', 'y', 'x', 'z'];
 const SIZES = [1, 2, 3] as const;
 
-/** Pinsel: Vorschau, Drehen/Spiegeln, Größe, Beidseitig, Ohne Kollision, Deckel, Zeichenebene. */
+/** Pinsel: Vorschau, Drehen/Spiegeln, Größe, Beidseitig, Ohne Kollision, Deckel. */
 export function BrushPanel({ ctx, session }: { ctx: AppCtx; session: EditorSession }) {
   const { state } = ctx;
   void state.docVersion.value;
@@ -72,25 +70,6 @@ export function BrushPanel({ ctx, session }: { ctx: AppCtx; session: EditorSessi
           </button>
         </div>
       )}
-      <div class="size-row">
-        <span class="muted">
-          {t.pinsel.zeichenebene} <kbd>Q</kbd>
-        </span>
-      </div>
-      <div role="group" aria-label={t.pinsel.zeichenebene} class="seg compact plane-switch">
-        {PLANES.map((m) => (
-          <button
-            key={m}
-            type="button"
-            aria-pressed={state.drawPlane.value === m}
-            onClick={() => {
-              state.drawPlane.value = m;
-            }}
-          >
-            {t.pinsel.ebenen[m]}
-          </button>
-        ))}
-      </div>
     </PanelSection>
   );
 }

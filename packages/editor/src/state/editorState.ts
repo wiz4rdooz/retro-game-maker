@@ -5,6 +5,7 @@ import type { SaveStatus } from '../project/autosave';
 import { DEFAULT_BRUSH, type BrushState } from '../tools/brush';
 import type { ToolId } from '../tools/registry';
 import type { Selection } from '../tools/selection';
+import { t } from '../strings/de';
 
 export interface HoverInfo {
   point: [number, number, number];
@@ -33,6 +34,8 @@ export interface EditorState {
   selection: Signal<Selection>;
   /** Gizmo-Griff unter dem Zeiger oder gerade gezogen (Ansicht hebt ihn hervor). */
   gizmoHandle: Signal<GizmoHandle | null>;
+  /** Aktuelle Zeichenebene mit Höhe, z. B. „Wand X = 1“ (für das Ebenen-Menü). */
+  planeLabel: Signal<string>;
 }
 
 export function createEditorState(): EditorState {
@@ -52,5 +55,6 @@ export function createEditorState(): EditorState {
     statsVisible: signal(false),
     selection: signal<Selection>({ mode: 'tiles', ids: new Set() }),
     gizmoHandle: signal<GizmoHandle | null>(null),
+    planeLabel: signal(t.ebene.boden('0')),
   };
 }

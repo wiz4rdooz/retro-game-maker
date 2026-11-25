@@ -1,9 +1,10 @@
 import type { EditorState } from '../state/editorState';
 import { t } from '../strings/de';
 import { TOOLS } from '../tools/registry';
+import { PlaneMenu } from './PlaneMenu';
 
-/** Werkzeugleiste links: Taste als kleines Kürzel am Knopf, Tooltip mit Name und Taste. */
-export function ToolRail({ state }: { state: EditorState }) {
+/** Werkzeugleiste links: Taste als kleines Kürzel am Knopf, Tooltip mit Name und Taste; darunter die Zeichenebene. */
+export function ToolRail({ state, onPlaneStep }: { state: EditorState; onPlaneStep: (steps: 1 | -1) => void }) {
   const active = state.tool.value;
   return (
     <nav aria-label={t.leiste.werkzeuge} class="tool-rail">
@@ -34,6 +35,8 @@ export function ToolRail({ state }: { state: EditorState }) {
           </button>,
         ];
       })}
+      <div class="divider-h" aria-hidden="true" />
+      <PlaneMenu state={state} onStep={onPlaneStep} />
     </nav>
   );
 }

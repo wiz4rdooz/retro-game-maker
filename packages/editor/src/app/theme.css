@@ -263,7 +263,7 @@ kbd {
 .tool-rail {
   flex: 0 0 60px;
   position: relative;
-  z-index: 2;
+  z-index: 3;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1038,4 +1038,48 @@ kbd {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   pointer-events: none;
+}
+
+/* Zeichenebene in der Werkzeugleiste */
+.plane-menu-wrap {
+  position: relative;
+}
+.tool-btn.plane-btn {
+  height: 52px;
+  flex-direction: column;
+  gap: 3px;
+}
+.plane-btn[aria-expanded='true'] {
+  background: var(--accent-bg);
+  color: var(--accent-2);
+}
+.plane-caption {
+  font: 600 9px/1 var(--font);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+.plane-btn .tool-key {
+  top: 3px;
+  bottom: auto;
+}
+.menu.plane-menu {
+  left: 52px;
+  top: -4px;
+  min-width: 200px;
+}
+.menu-sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border);
+}
+.menu-note {
+  padding: 6px 12px 2px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.menu-check {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
 }

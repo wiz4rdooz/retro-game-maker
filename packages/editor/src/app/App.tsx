@@ -157,7 +157,7 @@ export function App({ ctx }: { ctx: AppCtx }) {
     <div class="app">
       <TopBar ctx={ctx} session={session} />
       <div class="workspace">
-        <ToolRail state={state} />
+        <ToolRail state={state} onPlaneStep={(s) => ctx.viewport.current?.offsetPlane(s)} />
         <Viewport ctx={ctx} session={session} />
         <RightPanel ctx={ctx} session={session} />
       </div>

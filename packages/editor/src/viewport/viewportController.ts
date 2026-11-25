@@ -4,6 +4,7 @@ import {
   Camera,
   Chunk,
   LineRenderer,
+  axisIndex,
   TileRenderer,
   buildChunkMesh,
   createGl,
@@ -168,6 +169,7 @@ export class ViewportController {
         void state.drawPlane.value;
         void state.snap.value;
         this.updateCursorLines();
+        this.refreshPlaneLabel();
         this.requestRender();
       }),
       effect(() => {
@@ -395,9 +397,7 @@ export class ViewportController {
       return true;
     }
     if (k === 'PageUp' || k === 'PageDown') {
-      this.planes.offsetCursor(k === 'PageUp' ? 1 : -1, this.state.snap.value);
-      this.updateCursorLines();
-      this.requestRender();
+      this.offsetPlane(k === 'PageUp' ? 1 : -1);
       return true;
     }
     if (k === 'f' && !e.ctrlKey && !e.metaKey && !e.altKey) {
@@ -408,6 +408,23 @@ export class ViewportController {
       return true;
     }
     return false;
+  }
+
+  /** „Höher“/„Tiefer“ (auch Bild↑/Bild↓): die Zeichenebene des aktuellen Modus um einen Rasterschritt. */
+  offsetPlane(steps: 1 | -1): void {
+    // erst die Ebene des aktuellen Modus festhalten – nach einem Wechsel im Menü wäre „zuletzt genutzt“ veraltet
+    this.planes.resolve(this.state.drawPlane.value, null, this.session.world, this.camera.position);
+    this.planes.offsetCursor(steps, this.state.snap.value);
+    this.updateCursorLines();
+    this.refreshPlaneLabel();
+    this.requestRender();
+  }
+
+  /** Name und Höhe der Ebene, auf der als Nächstes gezeichnet wird (für das Ebenen-Menü). */
+  private refreshPlaneLabel(): void {
+    const mode = this.state.drawPlane.value;
+    const plane: DrawPlane = mode === 'auto' ? this.planes.sticky : { axis: mode, offset: this.planes.cursor[axisIndex(mode)], facing: 1 };
+    this.state.planeLabel.value = planeLabel(plane);
   }
 
   /** Auswahl in einen anderen Modus übertragen (für den Modus-Umschalter). */
@@ -525,6 +542,7 @@ export class ViewportController {
       return;
     }
     this.state.hover.value = { point: [pt[0], pt[1], pt[2]], planeLabel: planeLabel(tgt.plane), tileId: tgt.hit?.tileId ?? null };
+    this.refreshPlaneLabel();
     this.grid = tgt.point ? buildGrid(tgt.plane, tgt.point, this.state.snap.value) : new Float32Array(0);
   }
 
@@ -590,6 +608,7 @@ export class ViewportController {
         const pt = tgt.hit?.point ?? tgt.point;
         if (pt) this.planes.setCursor(pt, this.state.snap.value);
         this.updateCursorLines();
+        this.refreshPlaneLabel();
         this.requestRender();
         return;
       }

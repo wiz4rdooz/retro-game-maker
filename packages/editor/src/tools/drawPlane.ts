@@ -48,10 +48,13 @@ export class PlaneResolver {
     }
   }
 
-  /** Bild↑/Bild↓: verschiebt die zuletzt genutzte Ebene um steps Rasterschritte entlang ihrer Normalen. */
+  /**
+   * Bild↑/Bild↓ bzw. „Höher“/„Tiefer“: verschiebt die zuletzt genutzte Ebene um steps Rasterschritte
+   * in Achsrichtung (+x, +y, +z) – die angezeigte Höhe steigt mit „Höher“, egal von wo die Kamera schaut.
+   */
   offsetCursor(steps: number, snap: number): void {
     const { plane, fromCursor } = this.last;
-    const delta = steps * snap * plane.facing;
+    const delta = steps * snap;
     if (fromCursor) {
       this.cursor[axisIndex(plane.axis)] += delta;
     } else {

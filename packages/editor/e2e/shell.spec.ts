@@ -8,7 +8,11 @@ test('Startbildschirm → neues Projekt → Editor im Aufbau von B', async ({ pa
   await expect(page.getByRole('navigation', { name: 'Werkbänke' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Welt' })).toHaveAttribute('aria-current', 'page');
   await expect(page.getByRole('button', { name: 'Regeln' })).toBeDisabled();
-  await expect(page.getByRole('navigation', { name: 'Werkzeuge' }).getByRole('button')).toHaveCount(6);
+  // sechs Werkzeuge und darunter der Knopf „Zeichenebene“
+  const rail = page.getByRole('navigation', { name: 'Werkzeuge' });
+  await expect(rail.locator('button[aria-pressed]')).toHaveCount(6);
+  await expect(rail.getByRole('button')).toHaveCount(7);
+  await expect(rail.getByRole('button', { name: /Zeichenebene/ })).toBeVisible();
   await expect(page.locator('canvas')).toBeVisible();
 });
 test('Werkzeug-Tasten schalten um, das Hinweis-Kärtchen folgt', async ({ page }) => {

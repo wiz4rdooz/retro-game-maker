@@ -32,6 +32,12 @@ export function TopBar({ ctx, session }: { ctx: AppCtx; session: EditorSession }
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
+  // F5 wirkt auch im offenen Menü: mit dem Spiel geht es zu
+  const playing = state.mode.value === 'play';
+  useEffect(() => {
+    if (menu && playing) setMenu(false);
+  }, [menu, playing]);
+
   useEffect(() => {
     if (!menu) return;
     menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();

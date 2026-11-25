@@ -13,6 +13,11 @@ export interface KeyboardHandlers {
 /** Eingaben ohne Tipp-Bedeutung: nach einem Häkchen oder Knopf wirken die Editor-Tasten weiter. */
 const NON_TEXT_INPUTS = new Set(['checkbox', 'radio', 'button', 'submit', 'reset', 'color', 'file', 'image']);
 
+/** true, wenn das Ereignis aus einem Ausklapp-Menü kommt: dort ruhen Werkzeug-Tasten, F5 und Strg+S/Z/Y wirken weiter. */
+export function isMenuTarget(target: EventTarget | null): boolean {
+  return target instanceof Element && target.closest('[role="menu"]') !== null;
+}
+
 /** true, wenn das Ereignis aus einem Eingabefeld, einem Menü oder einem Dialog kommt. */
 export function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;
@@ -23,7 +28,8 @@ export function isTypingTarget(target: EventTarget | null): boolean {
 
 /**
  * Editor-Tastatur. Der Browser-Standard für F5, Strg+S, Strg+R, Strg+Z und Strg+Y wird immer
- * unterdrückt – auch in Textfeldern, dort aber ohne Editor-Aktion. Gibt eine Abmeldefunktion zurück.
+ * unterdrückt – auch in Textfeldern und Dialogen, dort aber ohne Editor-Aktion (in Menüs mit).
+ * Gibt eine Abmeldefunktion zurück.
  */
 export function installKeyboard(h: KeyboardHandlers): () => void {
   const onKeyDown = (e: KeyboardEvent) => {
@@ -33,7 +39,7 @@ export function installKeyboard(h: KeyboardHandlers): () => void {
     const reserved = e.key === 'F5' || (mod && (k === 's' || k === 'r' || k === 'z' || k === 'y'));
     if (reserved) {
       e.preventDefault();
-      if (typing || (e.repeat && (e.key === 'F5' || k === 's' || k === 'r'))) return;
+      if ((typing && !isMenuTarget(e.target)) || (e.repeat && (e.key === 'F5' || k === 's' || k === 'r'))) return;
       if (e.key === 'F5') h.onPlay();
       else if (k === 's') h.onSave();
       else if (k === 'z') (e.shiftKey ? h.onRedo : h.onUndo)();

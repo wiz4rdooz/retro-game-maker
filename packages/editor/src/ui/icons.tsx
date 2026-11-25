@@ -42,6 +42,12 @@ export const IconPlay: IconComponent = ({ size = 16 }) => (
     <path d="M8 5.5v13l10.5-6.5L8 5.5z" />
   </Icon>
 );
+/** Zeichenebene: ein Rasterfeld schräg von oben. */
+export const IconPlane: IconComponent = ({ size }) => (
+  <Icon size={size}>
+    <path d="M2 12.5L12 7l10 5.5L12 18 2 12.5zM7 9.75l10 5.5M17 9.75l-10 5.5" />
+  </Icon>
+);
 export const IconPencil: IconComponent = ({ size }) => (
   <Icon size={size}>
     <path d="M15.5 4.5l4 4L9 19H5v-4L15.5 4.5zM13.5 6.5l4 4" />
