@@ -59,6 +59,31 @@ export function rotateTiles90(world: World, ids: Iterable<number>, axis: 'x' | '
   });
 }
 
+/**
+ * Dreht um einen beliebigen Winkel um die Achse durch pivot (Rechte-Hand-Regel: positiv = gegen den
+ * Uhrzeigersinn, von der Achsenspitze aus gesehen; −π/2 entspricht rotateTiles90(…, 1, …)).
+ * Ecken werden auf 1e-6 gerundet, damit Vielfache von 90° glatt bleiben.
+ */
+export function rotateTiles(world: World, ids: Iterable<number>, axis: 'x' | 'y' | 'z', radians: number, pivot: V): TileChange[] {
+  const px = pivot[0], py = pivot[1], pz = pivot[2];
+  if (!Number.isFinite(radians) || ![px, py, pz].every(Number.isFinite)) return [];
+  const cos = Math.cos(radians), sin = Math.sin(radians);
+  const r6 = (v: number) => Math.round(v * 1e6) / 1e6;
+  return mapCorners(world, ids, (c, o) => {
+    const dx = c[o] - px, dy = c[o + 1] - py, dz = c[o + 2] - pz;
+    if (axis === 'y') {
+      c[o] = r6(px + dx * cos + dz * sin);
+      c[o + 2] = r6(pz - dx * sin + dz * cos);
+    } else if (axis === 'x') {
+      c[o + 1] = r6(py + dy * cos - dz * sin);
+      c[o + 2] = r6(pz + dy * sin + dz * cos);
+    } else {
+      c[o] = r6(px + dx * cos - dy * sin);
+      c[o + 1] = r6(py + dx * sin + dy * cos);
+    }
+  });
+}
+
 /** Skaliert um pivot; nur endliche Faktoren > 0. */
 export function scaleTiles(world: World, ids: Iterable<number>, factor: number, pivot: V): TileChange[] {
   if (!(factor > 0) || !Number.isFinite(factor)) return [];

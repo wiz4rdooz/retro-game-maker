@@ -39,6 +39,7 @@ export {
 export { floodCoplanar } from './geometry/adjacency';
 export {
   translateTiles,
+  rotateTiles,
   rotateTiles90,
   scaleTiles,
   moveVertices,
