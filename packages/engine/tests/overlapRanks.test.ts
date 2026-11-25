@@ -37,6 +37,17 @@ describe('overlapRanks (kein Flackern)', () => {
   it('Kette A–B–C → [0, 1, 2]', () => {
     expect(ranksOf([floor(0), floor(0.5), floor(1.2)])).toEqual([0, 1, 2]);
   });
+  it('4.000 deckungsgleiche Kacheln in einem Chunk: schnell, Stufe nach Alter (Review)', () => {
+    for (const reversed of [false, true]) {
+      const w = new World(); w.addLayer('a');
+      for (let i = 0; i < 4000; i++) w.addTile(floor(0), reversed ? 4000 - i : i + 1);
+      const chunk = w.chunks.get(chunkKeyForPoint(0.5, 0, 0.5))!;
+      const t0 = performance.now();
+      const r = overlapRanks(chunk, (l) => l);
+      expect(performance.now() - t0).toBeLessThan(300);
+      for (let i = 0; i < chunk.count; i++) expect(r[i]).toBe(Math.min(3, chunk.ids[i] - 1));
+    }
+  });
   it('fünf gleiche → [0, 1, 2, 3, 3]', () => {
     expect(ranksOf([floor(0), floor(0), floor(0), floor(0), floor(0)])).toEqual([0, 1, 2, 3, 3]);
   });

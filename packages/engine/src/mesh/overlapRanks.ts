@@ -117,7 +117,23 @@ export function overlapRanks(chunk: Chunk, layerOrder: (layer: number) => number
   const key = new Float64Array(count);
   for (const i of order) key[i] = layerOrder(chunk.layer[i]) * 2 ** 32 + chunk.ids[i];
   order.sort((x, y) => key[x] - key[y]);
-  const done = new Uint8Array(count);
+  // Eimer nach Reihenfolge sortieren: dann prüft jede Kachel nur Ältere, die Jüngsten zuerst,
+  // und hört auf, sobald die oberste Stufe erreicht ist (sonst O(n²) bei Stapeln)
+  const pos = new Int32Array(count);
+  for (let k = 0; k < order.length; k++) pos[order[k]] = k;
+  const byPos = (x: number, y: number) => pos[x] - pos[y];
+  for (const list of multi.values()) list.sort(byPos);
+  for (const list of bigByPlane.values()) list.sort(byPos);
+  /** Anzahl der Einträge mit pos < p (Liste nach pos sortiert). */
+  const before = (list: number[], p: number) => {
+    let lo = 0, hi = list.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (pos[list[mid]] < p) lo = mid + 1;
+      else hi = mid;
+    }
+    return lo;
+  };
   const polys = new Map<number, number[]>();
   const poly = (i: number) => {
     let p = polys.get(i);
@@ -127,25 +143,31 @@ export function overlapRanks(chunk: Chunk, layerOrder: (layer: number) => number
   const samePlane = (i: number, j: number) =>
     plane[i * 4] === plane[j * 4] && plane[i * 4 + 1] === plane[j * 4 + 1] && plane[i * 4 + 2] === plane[j * 4 + 2] && plane[i * 4 + 3] === plane[j * 4 + 3];
 
-  for (const i of order) {
+  for (let k = 0; k < order.length; k++) {
+    const i = order[k];
     let rank = 0;
-    const test = (j: number) => {
-      if (j === i || !done[j] || ranks[j] + 1 <= rank || !samePlane(i, j)) return;
-      if (overlapArea(poly(i), poly(j)) > MIN_OVERLAP_AREA) rank = Math.min(MAX_RANK, ranks[j] + 1);
+    /** Prüft list[end−1] … list[0] (alle älter als i), bis die oberste Stufe erreicht ist. */
+    const scan = (list: number[], end: number) => {
+      for (let m = end - 1; m >= 0 && rank < MAX_RANK; m--) {
+        const j = list[m];
+        if (ranks[j] + 1 <= rank || !samePlane(i, j)) continue;
+        if (overlapArea(poly(i), poly(j)) > MIN_OVERLAP_AREA) rank = Math.min(MAX_RANK, ranks[j] + 1);
+      }
     };
-    for (const j of bigByPlane.get(planeHash[i]) ?? []) test(j);
     if (big[i]) {
-      for (const j of order) test(j);
+      scan(order, k);
     } else {
+      const bigs = bigByPlane.get(planeHash[i]);
+      if (bigs) scan(bigs, before(bigs, k));
       const b = i * 4;
-      for (let cx = box[b]; cx <= box[b + 2]; cx++) {
-        for (let cy = box[b + 1]; cy <= box[b + 3]; cy++) {
-          for (const j of multi.get(mix(mix(planeHash[i], cx), cy)) ?? []) test(j);
+      for (let cx = box[b]; cx <= box[b + 2] && rank < MAX_RANK; cx++) {
+        for (let cy = box[b + 1]; cy <= box[b + 3] && rank < MAX_RANK; cy++) {
+          const list = multi.get(mix(mix(planeHash[i], cx), cy));
+          if (list) scan(list, before(list, k));
         }
       }
     }
     ranks[i] = rank;
-    done[i] = 1;
   }
   return ranks;
 }
