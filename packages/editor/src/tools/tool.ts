@@ -4,6 +4,7 @@ import type { History } from '../commands/history';
 import type { EditorState } from '../state/editorState';
 import type { Preview } from '../viewport/viewportController';
 import type { PlaneResolver } from './drawPlane';
+import type { GizmoLayout } from './gizmo';
 import type { ToolId } from './registry';
 
 /** Höchstzahl Kacheln pro Aktion (Review Focus 5). */
@@ -42,6 +43,8 @@ export interface ToolContext {
   notify(msg: string): void;
   /** Welt → Canvas-px; false, wenn nicht abbildbar. */
   project(p: ArrayLike<number>, out: Float32Array): boolean;
+  /** Höhe der Ansicht in CSS-Pixeln (Gizmo bleibt gleich groß). */
+  viewportHeight(): number;
 }
 
 export interface Tool {
@@ -51,6 +54,8 @@ export interface Tool {
   pointerUp(p: ToolPointer, c: ToolContext): void;
   key(e: KeyboardEvent, c: ToolContext): boolean;
   deactivate?(c: ToolContext): void;
+  /** Gizmo zum Zeichnen (nur das Auswahl-Werkzeug); null ohne Auswahl. */
+  gizmo?(c: ToolContext): GizmoLayout | null;
 }
 
 export interface PointerTarget {

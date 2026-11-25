@@ -29,6 +29,8 @@ export function makeToolHarness(toolId: ToolId) {
   const doc: DocCtx = { world, project };
   const history = new History(doc);
   const state = createEditorState();
+  // wie in der App: jede Änderung der History zählt die Dokument-Version hoch
+  history.subscribe(() => state.docVersion.value++);
   state.mode.value = 'edit';
   state.tool.value = toolId;
   const camera = new Camera();
@@ -68,6 +70,7 @@ export function makeToolHarness(toolId: ToolId) {
     notify: (msg) => {
       lastNotice = msg;
     },
+    viewportHeight: () => CANVAS,
     project: (p, out) => {
       camera.viewProj(vp, 1);
       mat4.transformPoint(tmp, vp, p);
@@ -79,6 +82,17 @@ export function makeToolHarness(toolId: ToolId) {
   };
 
   let tool: Tool = createTool(toolId);
+
+  const pxPointer = (px: number, py: number, o: CellOpts = {}): ToolPointer => ({
+    ndcX: (px / CANVAS) * 2 - 1,
+    ndcY: 1 - (py / CANVAS) * 2,
+    px,
+    py,
+    button: o.button ?? 0,
+    shift: o.shift ?? false,
+    alt: o.alt ?? false,
+    ctrl: o.ctrl ?? false,
+  });
 
   const pointer = (u: number, v: number, o: CellOpts = {}): ToolPointer => {
     // Zellmitte; bei Blick von oben ändert die Höhe (onTile) die NDC nicht
@@ -152,6 +166,20 @@ export function makeToolHarness(toolId: ToolId) {
     },
     hoverCell(u: number, v: number, o: CellOpts = {}) {
       tool.pointerMove(pointer(u, v, o), ctx);
+    },
+    /** Zeiger an beliebigen Canvas-Pixeln (für Gizmo-Griffe). */
+    pressPx(px: number, py: number, o: CellOpts = {}) {
+      tool.pointerDown(pxPointer(px, py, o), ctx);
+    },
+    movePx(px: number, py: number, o: CellOpts = {}) {
+      tool.pointerMove(pxPointer(px, py, o), ctx);
+    },
+    releasePx(px: number, py: number, o: CellOpts = {}) {
+      tool.pointerUp(pxPointer(px, py, o), ctx);
+    },
+    /** Gizmo-Lage wie in der Ansicht (null ohne Auswahl). */
+    gizmo() {
+      return tool.gizmo?.(ctx) ?? null;
     },
     /** Nur Drücken bzw. nur Loslassen (für Striche mit eigenen Bewegungen dazwischen). */
     pressCell(u: number, v: number, o: CellOpts = {}) {

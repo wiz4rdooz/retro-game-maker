@@ -1,4 +1,5 @@
 import { signal, type Signal } from '@preact/signals';
+import type { GizmoHandle } from '../tools/gizmo';
 import type { ViewKind } from '@rgm/engine';
 import type { SaveStatus } from '../project/autosave';
 import { DEFAULT_BRUSH, type BrushState } from '../tools/brush';
@@ -30,6 +31,8 @@ export interface EditorState {
   docVersion: Signal<number>;
   statsVisible: Signal<boolean>;
   selection: Signal<Selection>;
+  /** Gizmo-Griff unter dem Zeiger oder gerade gezogen (Ansicht hebt ihn hervor). */
+  gizmoHandle: Signal<GizmoHandle | null>;
 }
 
 export function createEditorState(): EditorState {
@@ -48,5 +51,6 @@ export function createEditorState(): EditorState {
     docVersion: signal(0),
     statsVisible: signal(false),
     selection: signal<Selection>({ mode: 'tiles', ids: new Set() }),
+    gizmoHandle: signal<GizmoHandle | null>(null),
   };
 }

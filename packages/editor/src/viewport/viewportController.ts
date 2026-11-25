@@ -28,6 +28,8 @@ import { createTool } from '../tools/registry';
 import { convertSelection, runSelectionAction, selectionPositions, type Selection, type SelectionAction } from '../tools/selection';
 import { pointerTarget, type Tool, type ToolContext, type ToolPointer } from '../tools/tool';
 import { showToast } from '../ui/Toast';
+import type { GizmoLayout } from '../tools/gizmo';
+import { gizmoTriangles } from './gizmoDraw';
 import { isTypingTarget } from './keyboard';
 import { CameraController } from './cameraController';
 
@@ -38,6 +40,8 @@ export interface Preview {
   points: Float32Array;
   /** Auswahl-Rechteck in CSS-Pixeln der Ansicht (x0, y0, x1, y1). */
   rect?: [number, number, number, number];
+  /** Beschriftung am Zeiger (CSS-Pixel), z. B. „1,25 m“ oder „15°“. */
+  label?: { x: number; y: number; text: string };
 }
 
 export class NoWebGl2Error extends Error {}
@@ -55,6 +59,7 @@ const GRID_CELLS = 24;
 const SEL_FILL: [number, number, number, number] = [0x4d / 255, 0x9f / 255, 1, 0.25];
 /** Mehr ausgewählte Kacheln werden nicht einzeln hervorgehoben. */
 const SEL_DRAW_MAX = 20_000;
+const GIZMO_CENTER: [number, number, number, number] = [0.92, 0.92, 0.92, 1];
 
 /**
  * Zeichnet die Welt bei Bedarf (Kamera, Welt, Hover, Vorschau). Vor jedem Bild werden geänderte
@@ -102,6 +107,9 @@ export class ViewportController {
   private selLines: Float32Array = new Float32Array(0);
   private selPoints: Float32Array = new Float32Array(0);
   private rectEl: HTMLDivElement | null = null;
+  private labelEl: HTMLDivElement | null = null;
+  /** Zuletzt gezeichnetes Gizmo (für Tests). */
+  private lastGizmo: GizmoLayout | null = null;
   private cursorLines: Float32Array = new Float32Array(0);
   private readonly vp = mat4.create();
   private readonly cleanups: (() => void)[] = [];
@@ -163,6 +171,10 @@ export class ViewportController {
         this.requestRender();
       }),
       effect(() => {
+        void state.gizmoHandle.value;
+        this.requestRender();
+      }),
+      effect(() => {
         void state.docVersion.value;
         void state.selection.value;
         void state.tool.value;
@@ -174,7 +186,14 @@ export class ViewportController {
     this.rectEl.className = 'select-rect';
     this.rectEl.hidden = true;
     canvas.parentElement?.appendChild(this.rectEl);
-    this.cleanups.push(() => this.rectEl?.remove());
+    this.labelEl = document.createElement('div');
+    this.labelEl.className = 'gizmo-label';
+    this.labelEl.hidden = true;
+    canvas.parentElement?.appendChild(this.labelEl);
+    this.cleanups.push(() => {
+      this.rectEl?.remove();
+      this.labelEl?.remove();
+    });
     this.installInput();
 
     const lost = (e: Event) => {
@@ -253,6 +272,15 @@ export class ViewportController {
         st.top = `${Math.min(r[1], r[3])}px`;
         st.width = `${Math.abs(r[2] - r[0])}px`;
         st.height = `${Math.abs(r[3] - r[1])}px`;
+      }
+    }
+    if (this.labelEl) {
+      const lb = p?.label;
+      this.labelEl.hidden = !lb;
+      if (lb) {
+        this.labelEl.textContent = lb.text;
+        this.labelEl.style.left = `${lb.x}px`;
+        this.labelEl.style.top = `${lb.y}px`;
       }
     }
     this.ghostParts = [];
@@ -457,6 +485,7 @@ export class ViewportController {
       },
       setPreview: (p) => this.setPreview(p),
       notify: (msg) => showToast(msg),
+      viewportHeight: () => Math.max(1, this.canvas.clientHeight),
       project: (p, out) => {
         const m = this.camera.viewProj(this.vp, this.aspect());
         const x = p[0], y = p[1], z = p[2];
@@ -728,7 +757,32 @@ export class ViewportController {
     const p = this.preview;
     if (p && p.lines.length >= 6) this.lines.drawLines(this.camera, aspect, p.lines, ACCENT, false);
     if (p && p.points.length >= 3) this.lines.drawPoints(this.camera, aspect, p.points, ACCENT, 6);
+    this.drawGizmo(aspect);
     this.updateCameraInfo();
+  }
+
+  /** Pfeile, Quadrate und Ringe an der Auswahl, immer obenauf (ohne Tiefentest). */
+  private drawGizmo(aspect: number): void {
+    const g = this.state.tool.value === 'select' ? (this.tool.gizmo?.(this.toolCtx) ?? null) : null;
+    this.lastGizmo = g;
+    if (!g) return;
+    for (const b of gizmoTriangles(g, this.camera, this.state.gizmoHandle.value)) {
+      if (b.tris.length >= 9) this.lines.drawTriangles(this.camera, aspect, b.tris, b.rgba, false);
+    }
+    this.lines.drawPoints(this.camera, aspect, g.pivot, GIZMO_CENTER, 7);
+  }
+
+  /** Lage des Gizmos in CSS-Pixeln der Ansicht (Tests); zeichnet dafür sofort ein Bild. */
+  gizmoInfo(): { centerPx: [number, number]; axes: { visible: boolean; tipPx: [number, number] }[]; planes: { visible: boolean; cornersPx: number[] }[]; rings: { visible: boolean }[] } | null {
+    this.renderNow();
+    const g = this.lastGizmo;
+    if (!g) return null;
+    return {
+      centerPx: g.centerPx,
+      axes: g.axes.map((a) => ({ visible: a.visible, tipPx: a.tipPx })),
+      planes: g.planes.map((pl) => ({ visible: pl.visible, cornersPx: pl.cornersPx })),
+      rings: g.rings.map((r) => ({ visible: r.visible })),
+    };
   }
 
   private updateCameraInfo(): void {

@@ -21,7 +21,7 @@ export const t = {
   hinweis: {
     paint: 'Klick setzt eine Kachel · Ziehen malt weiter · Shift + Ziehen füllt ein Rechteck · Rechtsklick nimmt eine Kachel auf · R dreht, X spiegelt',
     block: 'Klick setzt einen Block · Shift + Ziehen setzt eine Fläche aus Blöcken · Rechtsklick nimmt eine Kachel auf',
-    select: 'Klick wählt aus · Shift + Klick fügt hinzu · Ziehen verschiebt · 1 Ecken, 2 Kanten, 3 Kacheln · Bild↑/Bild↓ hebt und senkt',
+    select: 'Klick wählt aus · Shift + Klick fügt hinzu · Pfeile ziehen exakt entlang X/Y/Z, Ringe drehen · Alt = ohne Raster · 1 Ecken, 2 Kanten, 3 Kacheln',
     fill: 'Klick füllt zusammenhängende gleiche Kacheln · Ziehen auf freier Fläche füllt ein Rechteck',
     eyedropper: 'Klick nimmt Kachel, Drehung und Spiegelung auf',
     erase: 'Klick oder Ziehen entfernt Kacheln · Shift + Ziehen entfernt ein Rechteck',

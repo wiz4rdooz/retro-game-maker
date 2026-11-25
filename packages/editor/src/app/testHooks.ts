@@ -64,6 +64,15 @@ export function installTestHooks(ctx: AppCtx): void {
       return v.fullStats();
     },
     pixelAt: (x: number, y: number) => view()?.readPixel(x, y) ?? null,
+    gizmo: () => view()?.gizmoInfo() ?? null,
+    /** Ecken aller Kacheln (nach id sortiert), je 12 Zahlen. */
+    tileCorners: () => {
+      const w = session()?.world;
+      if (!w) return [];
+      const rows: { id: number; corners: number[] }[] = [];
+      for (const c of w.chunks.values()) for (let i = 0; i < c.count; i++) rows.push({ id: c.ids[i], corners: Array.from(c.corners.subarray(i * 12, i * 12 + 12)) });
+      return rows.sort((a, b) => a.id - b.id).map((r) => r.corners);
+    },
     tiles: () => session()?.world.tileCount() ?? 0,
     tile: (id: number) => {
       const tile = session()?.world.getTile(id);

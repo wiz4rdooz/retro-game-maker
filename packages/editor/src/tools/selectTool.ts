@@ -1,4 +1,4 @@
-import { axisIndex, mat4, vec3, type DrawPlane, type TileChange } from '@rgm/engine';
+import { axisIndex, mat4, rotateTiles, vec3, type DrawPlane, type TileChange } from '@rgm/engine';
 import type { SelectMode } from '../state/editorState';
 import { t } from '../strings/de';
 import { outlineHovered } from './eyedropperTool';
@@ -16,12 +16,14 @@ import {
   posKey,
   runSelectionAction,
   selectedTileIds,
+  selectionCenter,
   selectionMoveChanges,
   shifted,
   tilesInRect,
   type Selection,
 } from './selection';
 import { MAX_GHOSTS, MAX_TILES_PER_OP, pointOnPlane, pointerTarget, quadOutline, type Tool, type ToolContext, type ToolPointer } from './tool';
+import { axisDragDelta, gizmoLayout, hitGizmo, planeDragDelta, ringDragAngle, type GizmoHandle, type GizmoLayout } from './gizmo';
 
 type Element = { kind: 'tile'; id: number } | { kind: 'vertex'; p: Float32Array } | { kind: 'edge'; a: Float32Array; b: Float32Array };
 
@@ -46,6 +48,23 @@ interface RectDrag {
   ndc1: [number, number];
   additive: boolean;
 }
+
+interface GizmoDrag {
+  kind: 'gizmo';
+  handle: GizmoHandle;
+  pivot: Float32Array;
+  o0: Float32Array;
+  d0: Float32Array;
+  active: boolean;
+  delta: [number, number, number];
+  angle: number;
+  changes: TileChange[];
+}
+
+/** Drehringe rasten in 15°-Schritten ein. */
+const RING_SNAP = (15 * Math.PI) / 180;
+const AXIS_NAMES = ['x', 'y', 'z'] as const;
+const metres = (v: number) => `${(Math.round(v * 100) / 100).toLocaleString('de-DE')} m`;
 
 const VIEW_DISTANCE = 160;
 const DRAG_PX = 4;
@@ -104,10 +123,26 @@ function union(a: Selection, b: Selection): Selection {
  */
 export class SelectTool implements Tool {
   readonly id: ToolId = 'select';
-  private drag: MoveDrag | RectDrag | null = null;
+  private drag: MoveDrag | RectDrag | GizmoDrag | null = null;
+  private centerKey: { sel: Selection; doc: number; snap: number } | null = null;
+  private centerValue: Float32Array | null = null;
 
   pointerDown(p: ToolPointer, c: ToolContext): void {
     if (p.button !== 0 || this.drag) return;
+    // Gizmo-Griffe gehen vor
+    const layout = this.layout(c);
+    const handle = layout ? hitGizmo(layout, p.px, p.py) : null;
+    if (layout && handle) {
+      if (selectedTileIds(c.state.selection.value, c).length > MAX_TILES_PER_OP) {
+        c.notify(t.status.zuGross);
+        return;
+      }
+      const o0 = vec3.create(), d0 = vec3.create();
+      c.screenRay(p.ndcX, p.ndcY, o0, d0);
+      this.drag = { kind: 'gizmo', handle, pivot: layout.pivot, o0, d0, active: false, delta: [0, 0, 0], angle: 0, changes: [] };
+      c.state.gizmoHandle.value = handle;
+      return;
+    }
     const mode = c.state.selectMode.value;
     const hit = c.raycast(p.ndcX, p.ndcY);
     const el = hit ? this.pick(mode, hit.tileId, p, c) : null;
@@ -130,7 +165,15 @@ export class SelectTool implements Tool {
   pointerMove(p: ToolPointer, c: ToolContext): void {
     const d = this.drag;
     if (!d) {
+      const layout = this.layout(c);
+      const handle = layout ? hitGizmo(layout, p.px, p.py) : null;
+      const cur = c.state.gizmoHandle.value;
+      if (handle?.kind !== cur?.kind || handle?.axis !== cur?.axis) c.state.gizmoHandle.value = handle;
       this.hover(p, c);
+      return;
+    }
+    if (d.kind === 'gizmo') {
+      this.gizmoMove(p, c, d);
       return;
     }
     if (d.kind === 'rect') {
@@ -164,6 +207,19 @@ export class SelectTool implements Tool {
     this.drag = null;
     c.setPreview(null);
     if (!d) return;
+    if (d.kind === 'gizmo') {
+      c.state.gizmoHandle.value = null;
+      c.state.status.value = null;
+      if (!d.active || d.changes.length === 0) return;
+      if (d.changes.length > MAX_TILES_PER_OP) {
+        c.notify(t.status.zuGross);
+        return;
+      }
+      const sel = c.state.selection.value;
+      if (d.handle.kind === 'ring') commitSelectionEdit(c, { add: [], remove: [], update: d.changes }, t.auswahl.drehen, sel);
+      else commitSelectionEdit(c, { add: [], remove: [], update: d.changes }, t.auswahl.verschieben, shifted(sel, d.delta));
+      return;
+    }
     if (d.kind === 'rect') {
       this.finishRect(d, c);
       return;
@@ -209,6 +265,14 @@ export class SelectTool implements Tool {
       case 'Backspace':
         return runSelectionAction('delete', c);
       case 'Escape':
+        if (this.drag) {
+          // laufendes Ziehen abbrechen, Auswahl bleibt
+          this.drag = null;
+          c.setPreview(null);
+          c.state.gizmoHandle.value = null;
+          c.state.status.value = null;
+          return true;
+        }
         return runSelectionAction('clear', c);
     }
     const mode = MODE_KEYS[e.key];
@@ -223,6 +287,70 @@ export class SelectTool implements Tool {
   deactivate(c: ToolContext): void {
     this.drag = null;
     c.setPreview(null);
+    c.state.gizmoHandle.value = null;
+  }
+
+  /** Gizmo an der aktuellen Auswahl (null ohne Auswahl); Drehringe nur im Kachel-Modus. */
+  private layout(c: ToolContext, offset?: ArrayLike<number>): GizmoLayout | null {
+    const sel = c.state.selection.value;
+    let center = this.center(c);
+    if (center && offset) center = Float32Array.from([center[0] + offset[0], center[1] + offset[1], center[2] + offset[2]]);
+    return center ? gizmoLayout(center, c.camera, c.viewportHeight(), (q, out) => c.project(q, out), sel.mode === 'tiles') : null;
+  }
+
+  /** Mitte der Auswahl, zwischengespeichert: bei vielen Kacheln dauert sie zu lange für jedes Bild. */
+  private center(c: ToolContext): Float32Array | null {
+    const sel = c.state.selection.value, doc = c.state.docVersion.value, snap = c.state.snap.value;
+    const k = this.centerKey;
+    if (!k || k.sel !== sel || k.doc !== doc || k.snap !== snap) {
+      this.centerValue = selectionCenter(sel, c);
+      this.centerKey = { sel, doc, snap };
+    }
+    return this.centerValue;
+  }
+
+  /** Beim Ziehen eines Pfeils oder Quadrats wandert das Gizmo mit. */
+  gizmo(c: ToolContext): GizmoLayout | null {
+    const d = this.drag;
+    if (d?.kind === 'gizmo' && d.active && d.handle.kind !== 'ring') return this.layout(c, d.delta);
+    if (d && d.kind !== 'gizmo') return null;
+    return this.layout(c);
+  }
+
+  private gizmoMove(p: ToolPointer, c: ToolContext, d: GizmoDrag): void {
+    const o = vec3.create(), dir = vec3.create();
+    c.screenRay(p.ndcX, p.ndcY, o, dir);
+    const snap = p.alt ? null : c.state.snap.value;
+    const { kind, axis } = d.handle;
+    const sel = c.state.selection.value;
+    let text: string;
+    if (kind === 'ring') {
+      const angle = ringDragAngle(d.pivot, axis, d.o0, d.d0, o, dir, p.alt ? null : RING_SNAP);
+      if (angle === d.angle && d.active) return;
+      d.angle = angle;
+      d.changes = angle === 0 ? [] : rotateTiles(c.world, selectedTileIds(sel, c), AXIS_NAMES[axis], angle, d.pivot);
+      text = `${Math.round((angle * 180) / Math.PI)}°`;
+    } else {
+      let delta: [number, number, number];
+      if (kind === 'axis') {
+        const s = axisDragDelta(d.pivot, axis, d.o0, d.d0, o, dir, snap);
+        delta = [0, 0, 0];
+        delta[axis] = s;
+        text = metres(s);
+      } else {
+        delta = planeDragDelta(d.pivot, axis, d.o0, d.d0, o, dir, snap);
+        text = [0, 1, 2].filter((k) => k !== axis).map((k) => metres(delta[k])).join(' · ');
+      }
+      if (delta[0] === d.delta[0] && delta[1] === d.delta[1] && delta[2] === d.delta[2] && d.active) return;
+      d.delta = delta;
+      d.changes = delta.every((v) => v === 0) ? [] : selectionMoveChanges(c, delta);
+    }
+    d.active = true;
+    const ghosts = d.changes.slice(0, MAX_GHOSTS).map((ch) => ch.after);
+    const lines: number[] = [];
+    for (const g of ghosts.slice(0, 2000)) quadOutline(g.corners, lines);
+    c.setPreview({ ghosts, lines: new Float32Array(lines), points: new Float32Array(0), label: { x: p.px + 16, y: p.py - 18, text } });
+    c.state.status.value = text;
   }
 
   private pick(mode: SelectMode, tileId: number, p: ToolPointer, c: ToolContext): Element | null {

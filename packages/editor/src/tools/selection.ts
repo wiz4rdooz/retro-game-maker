@@ -252,6 +252,20 @@ export function edgesInRect(
 }
 
 /** Eindeutige Eck-Positionen der Auswahl (Ecken bzw. Kanten-Enden). */
+/** Drehpunkt des Gizmos: Kacheln wie beim Drehen (selectionPivot), Ecken/Kanten = Mittel der Punkte. */
+export function selectionCenter(sel: Selection, c: ToolContext): Float32Array | null {
+  if (selectionSize(sel) === 0) return null;
+  if (sel.mode === 'tiles') {
+    const ids = selectedTileIds(sel, c);
+    return ids.length > 0 ? selectionPivot(c.world, ids, c.state.snap.value) : null;
+  }
+  const pts = selectionPositions(sel);
+  if (pts.length === 0) return null;
+  const m = new Float32Array(3);
+  for (const p of pts) for (let k = 0; k < 3; k++) m[k] += p[k] / pts.length;
+  return m.every(Number.isFinite) ? m : null;
+}
+
 export function selectionPositions(sel: Selection): Float32Array[] {
   if (sel.mode === 'vertices') return sel.positions;
   if (sel.mode === 'edges') {
