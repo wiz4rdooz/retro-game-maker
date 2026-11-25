@@ -2,6 +2,7 @@ import { quadIsDegenerate, quadNormal } from '../geometry/quad';
 import { tileLocalUVs } from '../geometry/tileFrame';
 import type { TilesetInfo } from '../geometry/uv';
 import type { Chunk } from '../world/chunk';
+import { overlapRanks } from './overlapRanks';
 
 const L_LEN = Math.hypot(0.35, 1, 0.6);
 const LX = 0.35 / L_LEN;
@@ -51,7 +52,9 @@ export function buildChunkMesh(
   chunk: Chunk,
   tilesets: ReadonlyMap<number, TilesetInfo>,
   layerVisible: (layer: number) => boolean,
+  layerOrder: (layer: number) => number = (layer) => layer,
 ): ChunkMeshPart[] {
+  const ranks = overlapRanks(chunk, layerOrder);
   const sides = new Uint8Array(chunk.count);
   const partOf = new Int32Array(chunk.count);
   const counts = new Map<number, number>();
@@ -93,12 +96,12 @@ export function buildChunkMesh(
     const b = builders.get(tsId)!;
     const bits = chunk.bits[i];
     const own = tsId === chunk.tileset[i];
-    tileLocalUVs(c, i * 12, (bits & 3) as 0 | 1 | 2 | 3, (bits & 4) !== 0, (bits & 8) !== 0, tmpLocal);
+    quadNormal(c, tmpN, i * 12);
+    tileLocalUVs(c, i * 12, (bits & 3) as 0 | 1 | 2 | 3, (bits & 4) !== 0, (bits & 8) !== 0, tmpLocal, tmpN);
     const tx = own ? chunk.txy[i * 2] : 0;
     const ty = own ? chunk.txy[i * 2 + 1] : 0;
-    quadNormal(c, tmpN, i * 12);
-    writeQuad(b, c, i * 12, ORDER_FRONT, faceShade(tmpN[0], tmpN[1], tmpN[2]), tx, ty, 0);
-    if (sides[i] === 2) writeQuad(b, c, i * 12, ORDER_BACK, faceShade(-tmpN[0], -tmpN[1], -tmpN[2]), tx, ty, 0);
+    writeQuad(b, c, i * 12, ORDER_FRONT, faceShade(tmpN[0], tmpN[1], tmpN[2]), tx, ty, ranks[i]);
+    if (sides[i] === 2) writeQuad(b, c, i * 12, ORDER_BACK, faceShade(-tmpN[0], -tmpN[1], -tmpN[2]), tx, ty, ranks[i]);
   }
   return [...builders.values()].map((b) => b.part);
 }

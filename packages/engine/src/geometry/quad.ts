@@ -19,7 +19,7 @@ export function quadNormal(corners: V, out: Vec3, base = 0): Vec3 {
     ny += (az - bz) * (ax + bx);
     nz += (ax - bx) * (ay + by);
   }
-  const len = Math.hypot(nx, ny, nz);
+  const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
   if (len > 0 && Number.isFinite(len)) {
     out[0] = nx / len;
     out[1] = ny / len;
@@ -46,7 +46,7 @@ export function quadArea(corners: V, base = 0): number {
     ny += (corners[a + 2] - corners[b + 2]) * (corners[a] + corners[b]);
     nz += (corners[a] - corners[b]) * (corners[a + 1] + corners[b + 1]);
   }
-  return Math.hypot(nx, ny, nz) / 2;
+  return Math.sqrt(nx * nx + ny * ny + nz * nz) / 2;
 }
 
 /** Entartet: nicht endlich oder Fläche < 1e-8. Ein Dreieck (zwei gleiche Ecken) ist nicht entartet. */

@@ -680,13 +680,16 @@ export class ViewportController {
     const playing = this.frameHook !== null;
     const hidden = new Set(world.layers.filter((l) => !l.visible).map((l) => l.id));
     const visible = playing ? () => true : (id: number) => !hidden.has(id);
+    // Überlappungen in einer Fläche: spätere Ebene der Liste vorn, darin die neuere Kachel
+    const position = new Map(world.layers.map((l, i) => [l.id, i]));
+    const layerOrder = (id: number) => position.get(id) ?? 0;
     const t0 = performance.now();
     let i = 0;
     while (i < this.queue.length) {
       const key = this.queue[i++];
       const chunk = world.chunks.get(key);
       if (!chunk || chunk.count === 0) this.tiles.removeChunk(key);
-      else this.tiles.updateChunk(key, buildChunkMesh(chunk, this.tilesets, visible), chunk.min, chunk.max);
+      else this.tiles.updateChunk(key, buildChunkMesh(chunk, this.tilesets, visible, layerOrder), chunk.min, chunk.max);
       if (performance.now() - t0 >= budgetMs) break;
     }
     this.queue = this.queue.slice(i);

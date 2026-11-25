@@ -12,6 +12,7 @@ const n = new Float32Array(3);
  * Ursprung c0, u entlang der Kante c0→c1 (bei zusammengefallenen Ecken c3→c2), v senkrecht dazu
  * Richtung c3, nach unten gezählt wie K3. Größere Kacheln wiederholen die Textur, Schrägen dehnen
  * sie nicht. rot = k bedeutet k × 90° im Uhrzeigersinn, danach wird gespiegelt (wie `tileUVs`).
+ * `normal`: schon berechnete Newell-Normale (spart beim Vernetzen eine Rechnung).
  */
 export function tileLocalUVs(
   corners: ArrayLike<number>,
@@ -20,50 +21,68 @@ export function tileLocalUVs(
   flipX: boolean,
   flipY: boolean,
   out: Float32Array,
+  normal?: ArrayLike<number>,
 ): Float32Array {
-  const c = (i: number, j: number) => corners[base + i * 3 + j];
-  const edge = (a: number, b: number) => [c(b, 0) - c(a, 0), c(b, 1) - c(a, 1), c(b, 2) - c(a, 2)];
-  const e01 = edge(0, 1);
-  const e32 = edge(3, 2);
-  let t = Math.hypot(e01[0], e01[1], e01[2]) >= Math.hypot(e32[0], e32[1], e32[2]) ? e01 : e32;
-  quadNormal(corners, n, base);
+  // ohne Zwischen-Arrays: läuft für jede Kachel der Welt beim Vernetzen
+  const c = corners;
+  const x0 = c[base], y0 = c[base + 1], z0 = c[base + 2];
+  const ax = c[base + 3] - x0, ay = c[base + 4] - y0, az = c[base + 5] - z0;
+  const bx = c[base + 6] - c[base + 9], by = c[base + 7] - c[base + 10], bz = c[base + 8] - c[base + 11];
+  const useA = ax * ax + ay * ay + az * az >= bx * bx + by * by + bz * bz;
+  let tx = useA ? ax : bx, ty = useA ? ay : by, tz = useA ? az : bz;
+  const nn = normal ?? quadNormal(c, n, base);
+  const nx = nn[0], ny = nn[1], nz = nn[2];
   // u-Richtung in die Ebene der Kachel legen
-  const tn = t[0] * n[0] + t[1] * n[1] + t[2] * n[2];
-  t = [t[0] - tn * n[0], t[1] - tn * n[1], t[2] - tn * n[2]];
-  const tl = Math.hypot(t[0], t[1], t[2]);
-  let b = [n[1] * t[2] - n[2] * t[1], n[2] * t[0] - n[0] * t[2], n[0] * t[1] - n[1] * t[0]];
-  const bl = Math.hypot(b[0], b[1], b[2]);
-  if (!(tl > 1e-9) || !(bl > 1e-9)) {
+  const tn = tx * nx + ty * ny + tz * nz;
+  tx -= tn * nx;
+  ty -= tn * ny;
+  tz -= tn * nz;
+  const tl = Math.sqrt(tx * tx + ty * ty + tz * tz);
+  let vx = ny * tz - nz * ty, vy = nz * tx - nx * tz, vz = nx * ty - ny * tx;
+  const vl = Math.sqrt(vx * vx + vy * vy + vz * vz);
+  if (!(tl > 1e-9) || !(vl > 1e-9)) {
     out.set(BASE);
     return out;
   }
-  t = t.map((x) => x / tl);
-  b = b.map((x) => x / bl);
+  tx /= tl;
+  ty /= tl;
+  tz /= tl;
+  vx /= vl;
+  vy /= vl;
+  vz /= vl;
   // v zeigt zu c3/c2 („nach oben“ in der Textur)
-  const up = [...edge(0, 3)].map((x, j) => x + edge(1, 2)[j]);
-  if (b[0] * up[0] + b[1] * up[1] + b[2] * up[2] < 0) b = b.map((x) => -x);
-
+  const upx = c[base + 9] - x0 + c[base + 6] - c[base + 3];
+  const upy = c[base + 10] - y0 + c[base + 7] - c[base + 4];
+  const upz = c[base + 11] - z0 + c[base + 8] - c[base + 5];
+  if (vx * upx + vy * upy + vz * upz < 0) {
+    vx = -vx;
+    vy = -vy;
+    vz = -vz;
+  }
   let mu = 0;
   let mv = 0;
   for (let i = 0; i < 4; i++) {
-    const d = [c(i, 0) - c(0, 0), c(i, 1) - c(0, 1), c(i, 2) - c(0, 2)];
-    let u = d[0] * t[0] + d[1] * t[1] + d[2] * t[2];
-    let v = 1 - (d[0] * b[0] + d[1] * b[1] + d[2] * b[2]);
+    const dx = c[base + i * 3] - x0, dy = c[base + i * 3 + 1] - y0, dz = c[base + i * 3 + 2] - z0;
+    const u0 = dx * tx + dy * ty + dz * tz;
+    const v0 = 1 - (dx * vx + dy * vy + dz * vz);
     // Drehen wie K3: rot 1 (u, v) → (v, 1 − u), rot 2 → (1 − u, 1 − v), rot 3 → (1 − v, u)
-    if (rot === 1) [u, v] = [v, 1 - u];
-    else if (rot === 2) [u, v] = [1 - u, 1 - v];
-    else if (rot === 3) [u, v] = [1 - v, u];
+    let u = rot === 1 ? v0 : rot === 2 ? 1 - u0 : rot === 3 ? 1 - v0 : u0;
+    let v = rot === 1 ? 1 - u0 : rot === 2 ? 1 - v0 : rot === 3 ? u0 : v0;
     if (flipX) u = 1 - u;
     if (flipY) v = 1 - v;
     out[i * 2] = u;
     out[i * 2 + 1] = v;
-    mu += u / 4;
-    mv += v / 4;
+    mu += u * 0.25;
+    mv += v * 0.25;
   }
+  let ok = true;
   for (let i = 0; i < 4; i++) {
-    out[i * 2] = mu + (out[i * 2] - mu) * PULL;
-    out[i * 2 + 1] = mv + (out[i * 2 + 1] - mv) * PULL;
+    const u = mu + (out[i * 2] - mu) * PULL;
+    const v = mv + (out[i * 2 + 1] - mv) * PULL;
+    if (!Number.isFinite(u) || !Number.isFinite(v)) ok = false;
+    out[i * 2] = u;
+    out[i * 2 + 1] = v;
   }
-  if (!out.every(Number.isFinite)) out.set(BASE);
+  if (!ok) out.set(BASE);
   return out;
 }

@@ -14,6 +14,7 @@ export { tileUVs, type TilesetInfo } from './geometry/uv';
 export { tileLocalUVs } from './geometry/tileFrame';
 export { BlockFace, blockQuads } from './geometry/block';
 export { buildChunkMesh, faceShade, type ChunkMeshPart } from './mesh/chunkMesher';
+export { overlapRanks, MAX_RANK } from './mesh/overlapRanks';
 export { raycastWorld, rayPlane, type RayHit } from './pick/raycast';
 export { Camera, type ViewKind } from './render/camera';
 export { extractFrustum, aabbInFrustum, selectVisibleChunks, type ChunkBounds } from './render/frustum';
