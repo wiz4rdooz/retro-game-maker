@@ -1,5 +1,5 @@
 import { effect, signal, type Signal } from '@preact/signals';
-import { useEffect } from 'preact/hooks';
+import { useEffect, useLayoutEffect } from 'preact/hooks';
 import { DEFAULT_BRUSH } from '../tools/brush';
 import { pruneSelection } from '../tools/selection';
 import type { EditorState } from '../state/editorState';
@@ -132,7 +132,8 @@ export function App({ ctx }: { ctx: AppCtx }) {
     };
   }, [session]);
 
-  useEffect(() => {
+  // Synchron beim Einhängen (nicht erst nach dem nächsten Bild): Tasten wirken, sobald der Editor zu sehen ist
+  useLayoutEffect(() => {
     if (!session) return;
     const editing = () => state.mode.value === 'edit';
     return installKeyboard({
