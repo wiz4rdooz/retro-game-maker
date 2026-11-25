@@ -2,7 +2,7 @@ import { quadIsDegenerate, quadNormal } from '../geometry/quad';
 import { tileLocalUVs } from '../geometry/tileFrame';
 import type { TilesetInfo } from '../geometry/uv';
 import type { Chunk } from '../world/chunk';
-import { overlapRanks } from './overlapRanks';
+import { overlapRanks, type RankTiles } from './overlapRanks';
 
 const L_LEN = Math.hypot(0.35, 1, 0.6);
 const LX = 0.35 / L_LEN;
@@ -46,15 +46,17 @@ const FALLBACK_TILESET = -1;
  * Baut die Zeichendaten eines Chunks: ein Teil je Tileset, 4 Ecken je Kachelseite.
  * Übersprungen werden verborgene Ebenen und entartete Kacheln. Kacheln, deren Tileset fehlt,
  * zeigen die erste Kachel der Prüftextur (−1), sofern sie in tilesets steht – sonst wären sie
- * unsichtbar, aber weiter fest und anklickbar.
+ * unsichtbar, aber weiter fest und anklickbar. context: Kacheln der Nachbar-Chunks (overlapContext),
+ * damit Überlappungen über die Chunk-Grenze dieselben Rangstufen bekommen wie beim Nachbarn.
  */
 export function buildChunkMesh(
   chunk: Chunk,
   tilesets: ReadonlyMap<number, TilesetInfo>,
   layerVisible: (layer: number) => boolean,
   layerOrder: (layer: number) => number = (layer) => layer,
+  context: RankTiles | null = null,
 ): ChunkMeshPart[] {
-  const ranks = overlapRanks(chunk, layerOrder);
+  const ranks = overlapRanks(context && context.count > 0 ? withContext(chunk, context) : chunk, layerOrder, layerVisible);
   const sides = new Uint8Array(chunk.count);
   const partOf = new Int32Array(chunk.count);
   const counts = new Map<number, number>();
@@ -130,4 +132,23 @@ function writeQuad(b: Builder, corners: Float32Array, base: number, order: numbe
   p.indices[ii + 3] = v0;
   p.indices[ii + 4] = v0 + 2;
   p.indices[ii + 5] = v0 + 3;
+}
+
+/** Chunk-Kacheln zuerst, dahinter die der Nachbarn (Rangstufen gelten dann für Index < chunk.count). */
+function withContext(chunk: Chunk, context: RankTiles): RankTiles {
+  const n = chunk.count, m = context.count;
+  const ids = new Float64Array(n + m);
+  const layer = new Uint16Array(n + m);
+  const corners = new Float32Array((n + m) * 12);
+  for (let i = 0; i < n; i++) {
+    ids[i] = chunk.ids[i];
+    layer[i] = chunk.layer[i];
+  }
+  for (let i = 0; i < m; i++) {
+    ids[n + i] = context.ids[i];
+    layer[n + i] = context.layer[i];
+  }
+  corners.set(chunk.corners.subarray(0, n * 12));
+  corners.set(context.corners.subarray(0, m * 12), n * 12);
+  return { count: n + m, ids, layer, corners };
 }

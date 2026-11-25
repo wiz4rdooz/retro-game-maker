@@ -9,9 +9,11 @@ import {
   buildChunkMesh,
   createGl,
   mat4,
+  overlapContext,
   planeToWorld,
   raycastWorld,
   vec3,
+  withOverlapNeighbors,
   worldToPlane,
   type DrawPlane,
   type RayHit,
@@ -709,10 +711,13 @@ export class ViewportController {
   /** Vernetzt Chunks aus der Warteschlange, bis das Zeitbudget aufgebraucht ist; true = Rest bleibt. */
   private remesh(budgetMs: number): boolean {
     const world = this.session.world;
-    const fresh = world.takeRenderDirty();
-    if (fresh.size > 0) {
-      const recent = [...fresh].reverse();
-      this.queue = [...recent, ...this.queue.filter((k) => !fresh.has(k))];
+    const changed = world.takeRenderDirty();
+    if (changed.size > 0) {
+      // Nachbarn mit Überlappungen über die Grenze bekommen ihre Rangstufen mit neu
+      const fresh = withOverlapNeighbors(world, changed);
+      const recent = [...changed].reverse();
+      const neighbors = [...fresh].filter((k) => !changed.has(k));
+      this.queue = [...recent, ...neighbors, ...this.queue.filter((k) => !fresh.has(k))];
     }
     if (this.queue.length === 0) {
       if (this.meshBatch > 0) {
@@ -737,7 +742,7 @@ export class ViewportController {
       const key = this.queue[i++];
       const chunk = world.chunks.get(key);
       if (!chunk || chunk.count === 0) this.tiles.removeChunk(key);
-      else this.tiles.updateChunk(key, buildChunkMesh(chunk, this.tilesets, visible, layerOrder), chunk.min, chunk.max);
+      else this.tiles.updateChunk(key, buildChunkMesh(chunk, this.tilesets, visible, layerOrder, overlapContext(world, chunk, visible)), chunk.min, chunk.max);
       if (performance.now() - t0 >= budgetMs) break;
     }
     this.queue = this.queue.slice(i);

@@ -1,4 +1,10 @@
-import type { Chunk } from '../world/chunk';
+/** Kacheln für die Rangstufen: ein Chunk oder ein Chunk samt Kacheln seiner Nachbarn. */
+export interface RankTiles {
+  count: number;
+  ids: ArrayLike<number>;
+  layer: ArrayLike<number>;
+  corners: Float32Array;
+}
 
 /** Höchste Rangstufe; mehr Überlagerungen teilen sich die oberste. */
 export const MAX_RANK = 3;
@@ -11,12 +17,17 @@ const SHRINK = 1e-4;
 /**
  * Rangstufe 0–3 je Kachel-Index: Überlappen sich Kacheln in derselben Fläche (gleiche Ebene ±1 mm,
  * Blickrichtung egal), liegt die mit größerem (layerOrder, id) eine Stufe höher als jede, die sie
- * überdeckt. So flackert nichts; der Shader rückt höhere Stufen minimal nach vorn.
+ * überdeckt. So flackert nichts; der Shader rückt höhere Stufen minimal nach vorn. Kacheln, deren
+ * Ebene include verneint (ausgeblendet), zählen nicht mit und behalten Stufe 0.
  *
  * Schnell für den Normalfall: Kacheln kommen in Raster-Eimer (Fläche + Zelle); nur Kacheln, die
  * sich einen Eimer teilen, werden genau verglichen.
  */
-export function overlapRanks(chunk: Chunk, layerOrder: (layer: number) => number): Uint8Array {
+export function overlapRanks(
+  chunk: RankTiles,
+  layerOrder: (layer: number) => number,
+  include: (layer: number) => boolean = () => true,
+): Uint8Array {
   const count = chunk.count;
   const ranks = new Uint8Array(count);
   if (count < 2) return ranks;
@@ -33,6 +44,7 @@ export function overlapRanks(chunk: Chunk, layerOrder: (layer: number) => number
   const planeHash = new Int32Array(count);
 
   for (let i = 0; i < count; i++) {
+    if (!include(chunk.layer[i])) continue;
     const base = i * 12;
     // Newell-Normale in einem Durchgang; ihre Länge ist die doppelte Fläche (entartet/NaN → überspringen)
     let gx = 0, gy = 0, gz = 0;
