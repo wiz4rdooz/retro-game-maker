@@ -1,4 +1,5 @@
 import {
+  coveredTiles,
   extrudeTiles,
   extractFrustum,
   mergeVertices,
@@ -14,7 +15,7 @@ import {
   type World,
 } from '@rgm/engine';
 import type { Command, DocCtx } from '../commands/command';
-import { editTilesCmd, removeTilesCmd, updateTilesCmd } from '../commands/tileCommands';
+import { editTilesCmd, removeTilesCmd, type TileEdit } from '../commands/tileCommands';
 import type { SelectMode } from '../state/editorState';
 import { t } from '../strings/de';
 import { MAX_TILES_PER_OP, type ToolContext } from './tool';
@@ -59,6 +60,21 @@ export function execWithSelection(c: ToolContext, cmd: Command<DocCtx>, after: S
       state.selection.value = before;
     },
   });
+}
+
+/**
+ * Führt eine Bearbeitung der Auswahl aus (ein Rückgängig-Schritt, Auswahl danach = after) und
+ * entfernt dabei Kacheln derselben Ebene, die von bewegten oder neuen Kacheln exakt verdeckt würden:
+ * Nichts liegt doppelt und flackert. Nur bearbeitbare Ebenen verlieren Kacheln.
+ */
+export function commitSelectionEdit(c: ToolContext, edit: TileEdit, label: string, after: Selection): void {
+  const exclude = new Set<number>(edit.remove);
+  for (const u of edit.update) exclude.add(u.id);
+  const covered = coveredTiles(c.world, [...edit.update.map((u) => u.after), ...edit.add], exclude).filter((id) => {
+    const tile = c.world.getTile(id);
+    return tile !== null && c.editable(tile.layer);
+  });
+  execWithSelection(c, editTilesCmd({ add: edit.add, remove: [...edit.remove, ...covered], update: edit.update }, label), after);
 }
 
 /** Größere Auswahlen werden nicht bei jeder Änderung nachgeprüft (sie filtern beim Benutzen ohnehin). */
@@ -318,7 +334,7 @@ export function moveSelection(c: ToolContext, delta: ArrayLike<number>): boolean
   if (selectionSize(sel) === 0) return false;
   const changes = selectionMoveChanges(c, delta);
   if (tooBig(changes.length, c)) return true;
-  if (changes.length > 0) execWithSelection(c, updateTilesCmd(changes, t.auswahl.verschieben), shifted(sel, delta));
+  if (changes.length > 0) commitSelectionEdit(c, { add: [], remove: [], update: changes }, t.auswahl.verschieben, shifted(sel, delta));
   return true;
 }
 
@@ -368,7 +384,7 @@ export function runSelectionAction(action: SelectionAction, c: ToolContext): boo
         action === 'scaleUp' || action === 'scaleDown'
           ? scaleTiles(c.world, ids, action === 'scaleUp' ? 2 : 0.5, pivot)
           : rotateTiles90(c.world, ids, action === 'rotate' ? 'y' : action === 'rotateX' ? 'x' : 'z', 1, pivot);
-      if (changes.length > 0) execWithSelection(c, updateTilesCmd(changes, action.startsWith('scale') ? t.auswahl.mal2 : t.auswahl.drehen), sel);
+      if (changes.length > 0) commitSelectionEdit(c, { add: [], remove: [], update: changes }, action.startsWith('scale') ? t.auswahl.mal2 : t.auswahl.drehen, sel);
       return true;
     }
     case 'extrude': {
@@ -380,7 +396,7 @@ export function runSelectionAction(action: SelectionAction, c: ToolContext): boo
       const ids = selectedTileIds(sel, c);
       if (tooBig(ids.length * 5, c)) return true;
       const { update, add } = extrudeTiles(c.world, ids, snap);
-      if (update.length > 0 || add.length > 0) execWithSelection(c, editTilesCmd({ add, remove: [], update }, t.auswahl.extrudieren), sel);
+      if (update.length > 0 || add.length > 0) commitSelectionEdit(c, { add, remove: [], update }, t.auswahl.extrudieren, sel);
       return true;
     }
     case 'merge': {
@@ -392,7 +408,7 @@ export function runSelectionAction(action: SelectionAction, c: ToolContext): boo
       const mid = [0, 1, 2].map((a) => Math.round(sel.positions.reduce((s, p) => s + p[a], 0) / sel.positions.length / snap) * snap);
       const changes = mergeVertices(c.world, sel.positions, mid, c.editable);
       if (tooBig(changes.length, c)) return true;
-      if (changes.length > 0) execWithSelection(c, updateTilesCmd(changes, t.auswahl.zusammenfuehren), { mode: 'vertices', positions: [new Float32Array(mid)] });
+      if (changes.length > 0) commitSelectionEdit(c, { add: [], remove: [], update: changes }, t.auswahl.zusammenfuehren, { mode: 'vertices', positions: [new Float32Array(mid)] });
       return true;
     }
   }

@@ -194,6 +194,11 @@ export class World {
     return min[0] <= max[0] ? { min, max } : null;
   }
 
+  /** Chunk-Schlüssel, in dem eine Kachel mit diesen Ecken liegt (Schwerpunkt). */
+  chunkKeyForCorners(corners: V): number {
+    return this.keyFor(corners);
+  }
+
   /** Chunk-Schlüssel aus dem Schwerpunkt; nicht endliche Ecken zählen nicht mit. */
   private keyFor(corners: V): number {
     const p = [0, 0, 0];

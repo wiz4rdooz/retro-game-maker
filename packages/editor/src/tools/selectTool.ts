@@ -1,5 +1,4 @@
 import { axisIndex, mat4, vec3, type DrawPlane, type TileChange } from '@rgm/engine';
-import { updateTilesCmd } from '../commands/tileCommands';
 import type { SelectMode } from '../state/editorState';
 import { t } from '../strings/de';
 import { outlineHovered } from './eyedropperTool';
@@ -9,8 +8,8 @@ import {
   cornersInRect,
   edgeKey,
   edgesInRect,
+  commitSelectionEdit,
   emptySelection,
-  execWithSelection,
   moveSelection,
   pickEdge,
   pickVertex,
@@ -174,7 +173,7 @@ export class SelectTool implements Tool {
       c.notify(t.status.zuGross);
       return;
     }
-    execWithSelection(c, updateTilesCmd(d.changes, t.auswahl.verschieben), shifted(c.state.selection.value, d.delta));
+    commitSelectionEdit(c, { add: [], remove: [], update: d.changes }, t.auswahl.verschieben, shifted(c.state.selection.value, d.delta));
   }
 
   key(e: KeyboardEvent, c: ToolContext): boolean {

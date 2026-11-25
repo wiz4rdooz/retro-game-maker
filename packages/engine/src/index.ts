@@ -8,6 +8,7 @@ export { CHUNK_SIZE, chunkKey, chunkCoords, chunkKeyForPoint } from './world/key
 export { packBits, unpackBits, type TileData, type Layer, type TileBits } from './world/types';
 export { Chunk } from './world/chunk';
 export { World, type Facing } from './world/world';
+export { coveredTiles } from './world/coveredTiles';
 export { quadNormal, quadCentroid, quadArea, quadIsFinite, quadIsDegenerate } from './geometry/quad';
 export { cellQuad, worldToPlane, planeToWorld, planeOfQuad, axisIndex, type DrawPlane, type PlaneAxis } from './geometry/plane';
 export { tileUVs, type TilesetInfo } from './geometry/uv';
